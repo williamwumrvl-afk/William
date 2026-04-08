@@ -234,61 +234,107 @@
     .cn-subtitle{font-size:12px;color:#64748b;margin-top:2px}
 
 
-    .top-actions{
-      position: sticky; top: 0; z-index: 30;
-      margin-top: 12px; margin-bottom: 12px;
-      background: rgba(244,247,251,.92);
-      backdrop-filter: blur(10px);
-      padding: 8px 0 2px;
+    .stats-hero{padding:14px 16px !important; margin-bottom:10px !important}
+    .stats-hero h3{font-size:24px !important; line-height:1.2 !important}
+    .stats-hero p{font-size:13px !important; margin-top:4px !important}
+    .stats-actions{gap:8px !important; margin-bottom:10px !important}
+    .stats-actions button{padding:10px 12px !important; font-size:14px !important}
+    .stats-card{border-radius:18px !important}
+    .stats-headbar{
+      grid-template-columns:58px 1.35fr .72fr .72fr .72fr .82fr !important;
+      gap:6px !important;
+      padding:10px 10px !important;
+      font-size:12px !important;
     }
-    .icon-nav{
-      display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+    .stats-row{
+      grid-template-columns:58px 1.35fr .72fr .72fr .72fr .82fr !important;
+      gap:6px !important;
+      padding:9px 10px !important;
     }
-    .icon-btn{
-      border:1px solid var(--line);
-      background:linear-gradient(180deg,#ffffff,#f8fbff);
-      border-radius:18px; padding:12px 8px;
-      box-shadow:0 8px 20px rgba(15,23,42,.06);
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      gap:6px; min-height:78px;
+    .medal-photo,.medal-rank,.rank-badge{width:40px !important; height:40px !important}
+    .player-name-elite{font-size:17px !important; font-weight:900 !important}
+    .stat-pill{
+      min-width:46px !important;
+      padding:7px 8px !important;
+      font-size:17px !important;
+      border-radius:999px !important;
     }
-    .icon-btn.active{
-      border-color:#7dd3fc;
-      box-shadow:0 10px 24px rgba(14,165,233,.14);
-      background:linear-gradient(180deg,#f0f9ff,#ffffff);
+    .share-shot{
+      width:min(100vw - 24px, 720px) !important;
+      padding:16px !important;
+      border-radius:22px !important;
     }
-    .icon-btn svg{width:24px;height:24px;color:#0369a1}
-    .icon-btn span{font-size:13px;font-weight:700;color:#0f172a}
-    .section-panel{display:none}
-    .section-panel.active{display:block}
-    .section-card-title{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      margin-bottom:10px;
+    .share-shot .share-title{
+      font-size:clamp(22px, 5.5vw, 32px) !important;
+      line-height:1.15 !important;
     }
-    .section-mini{
-      display:flex; align-items:center; gap:8px;
-      color:#64748b; font-size:12px;
+    .share-shot .share-sub{
+      font-size:clamp(12px, 3vw, 15px) !important;
     }
-    .section-mini svg{width:16px;height:16px}
-    @media (max-width: 600px){
-      .top-actions{top:0; margin-top:10px}
-      .icon-btn{min-height:72px; padding:10px 6px}
-      .icon-btn span{font-size:12px}
-      .icon-btn svg{width:22px;height:22px}
+    .share-score-table{margin-top:12px !important; border-radius:18px !important}
+    .share-head, .share-row{
+      grid-template-columns:62px 1.35fr .75fr .75fr .75fr .8fr !important;
+      gap:6px !important;
+      padding:10px 10px !important;
     }
-
-
-    .stats-hero h3{font-size:28px !important}
-    .stats-headbar{font-size:14px !important}
-    .stats-row{padding:14px 16px !important}
-    .player-name-elite{font-size:20px !important; font-weight:900 !important}
-    .stat-pill{min-width:66px !important; padding:10px 14px !important; font-size:20px !important; line-height:1 !important}
-    .player-sub{display:none !important}
+    .share-head{
+      font-size:11px !important;
+    }
+    .share-name{
+      font-size:clamp(14px, 3.8vw, 20px) !important;
+      line-height:1.15 !important;
+    }
+    .share-tag,.share-row .medal-photo,.share-row .medal-rank{
+      width:40px !important; height:40px !important;
+    }
+    .share-foot{
+      font-size:11px !important;
+      margin-top:10px !important;
+    }
     @media (max-width:600px){
-      .stats-hero h3{font-size:22px !important}
-      .stats-headbar{font-size:12px !important}
-      .player-name-elite{font-size:18px !important}
-      .stat-pill{min-width:54px !important; padding:9px 10px !important; font-size:18px !important}
+      .stats-hero{padding:12px 12px !important}
+      .stats-hero h3{font-size:20px !important}
+      .stats-headbar{
+        grid-template-columns:50px 1.2fr .66fr .66fr .66fr .74fr !important;
+        gap:4px !important;
+        padding:8px 8px !important;
+        font-size:11px !important;
+      }
+      .stats-row{
+        grid-template-columns:50px 1.2fr .66fr .66fr .66fr .74fr !important;
+        gap:4px !important;
+        padding:8px 8px !important;
+      }
+      .player-name-elite{font-size:15px !important}
+      .medal-photo,.medal-rank,.rank-badge{width:34px !important; height:34px !important}
+      .stat-pill{
+        min-width:40px !important;
+        padding:6px 6px !important;
+        font-size:15px !important;
+      }
+      .stats-actions{
+        display:grid !important;
+        grid-template-columns:1fr 1fr !important;
+      }
+      .stats-actions button{
+        width:100% !important;
+        font-size:13px !important;
+      }
+      .share-shot{
+        width:min(100vw - 16px, 520px) !important;
+        padding:12px !important;
+      }
+      .share-head, .share-row{
+        grid-template-columns:48px 1.15fr .62fr .62fr .62fr .68fr !important;
+        gap:4px !important;
+        padding:8px 8px !important;
+      }
+      .share-name{
+        font-size:clamp(12px, 4vw, 16px) !important;
+      }
+      .share-tag,.share-row .medal-photo,.share-row .medal-rank{
+        width:34px !important; height:34px !important;
+      }
     }
 
 </style>
@@ -299,25 +345,7 @@
   <div class="hero">
     <h1>羽毛球双打工具</h1>
     <p>基于 equal matches 版升级：必须保证每个人都至少和其他每个人搭档一次，且每个人比赛场次相同；系统会按人数自动算出最少轮次，并优先用满 2 块场地。所有参赛成员都可直接录入比分。</p>
-  
-  <div class="top-actions">
-    <div class="icon-nav">
-      <button class="icon-btn active" id="navSchedule" onclick="navigateTo('schedule')">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h2v2h6V2h2v2h3a1 1 0 0 1 1 1v15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1h3V2zm12 8H5v10h14V10z"/></svg>
-        <span>对阵表</span>
-      </button>
-      <button class="icon-btn" id="navPlayers" onclick="navigateTo('players')">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2h14zm-7-8a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm11 8v-2a4 4 0 0 0-3-3.87 3.99 3.99 0 0 1 2 3.47V21h1zm-3-12a4 4 0 0 1 0 8 4 4 0 0 0 0-8z"/></svg>
-        <span>球员</span>
-      </button>
-      <button class="icon-btn" id="navStats" onclick="navigateTo('stats')">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3h14a2 2 0 0 1 2 2v14l-4-3-4 3-4-3-4 3V5a2 2 0 0 1 2-2zm2 4v2h10V7H7zm0 4v2h10v-2H7z"/></svg>
-        <span>个人成绩</span>
-      </button>
-    </div>
   </div>
-
-  <div class="section-panel active" id="panel-schedule">
 
   <div class="grid two">
     <div class="card">
@@ -361,19 +389,19 @@ Jenny</textarea>
 
   <div class="grid two">
     <div class="card">
-      <div id="scheduleAnchor" class="title">对阵表</div><div class="sub">所有参赛成员都可以直接点击输入比分；手机竖屏下对阵与比分保持同一行显示。</div>
+      <div class="title">对阵表</div><div class="sub">所有参赛成员都可以直接点击输入比分；手机竖屏下对阵与比分保持同一行显示。</div>
       <div id="scheduleWrap"></div>
     </div>
     <div class="card">
-      <div id="playersAnchor" class="title">球员</div>
-      <div id="panel-players"><div class="player-grid" id="playerGrid"></div></div>
+      <div class="title">球员</div>
+      <div class="player-grid" id="playerGrid"></div>
     </div>
   </div>
 
   <div class="card">
-    <div id="statsAnchor" class="title">个人成绩统计</div>
+    <div class="title">个人成绩统计</div>
     <div class="sub" style="margin-bottom:10px">采用国际比赛风格的统计展示，自动标识前三名，并支持一键导出成绩图片分享。</div>
-    <div id="panel-stats"><div id="statsWrap"></div></div>
+    <div id="statsWrap"></div>
   </div>
 </div>
 
@@ -687,9 +715,9 @@ function renderStats(){
       <h3>个人成绩统计</h3>
       <p>按本场成绩自动排名：胜场优先，其次净胜分。前三名使用金 / 银 / 铜奖牌标识。</p>
     </div>
-    <div class="sub" style="margin:6px 0 10px">说明：普通 HTML 页面不能直接强制跳转到微信分享。支持系统分享的手机浏览器会优先调起系统分享；不支持时会自动下载成绩照片，方便再发到微信。</div><div class="stats-actions">
-      <button class="primary" onclick="shareStatsImage()">一键分享成绩照片</button>
-      <button class="secondary" onclick="downloadStatsImage()">下载成绩照片</button>
+    <div class="sub" style="margin:6px 0 10px">生成后可直接保存成绩照片；在微信内或支持系统分享的手机浏览器中，可继续转发到微信好友或群。照片版式会按手机屏幕自动缩放。</div><div class="stats-actions">
+      <button class="primary" onclick="shareStatsImage()">生成成绩照片</button>
+      <button class="secondary" onclick="downloadStatsImage()">下载照片</button>
     </div>
     <div class="stats-card" id="statsShareCard">
       <div class="stats-headbar">
@@ -829,7 +857,7 @@ async function shareStatsImage(){
       const file = new File([blob], 'badminton_match_summary.png', {type:'image/png'});
       if(navigator.canShare && navigator.canShare({files:[file]})){
         try{
-          await navigator.share({files:[file], title:'个人成绩统计', text:'羽毛球比赛个人成绩统计照片'});
+          await navigator.share({files:[file], title:'个人成绩统计', text:'羽毛球比赛个人成绩统计照片，可直接分享至微信'});
         }catch(err){}
       }else{
         const a = document.createElement('a');
@@ -837,90 +865,12 @@ async function shareStatsImage(){
         a.download = 'badminton_match_summary.png';
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-        alert('当前浏览器不能直接拉起微信分享，已改为下载成绩照片，你可以在微信里手动发送这张图片。');
+        alert('当前手机浏览器不支持系统分享，已改为下载图片。');
       }
     }, 'image/png');
   }catch(err){
-    alert('当前页面不能直接跳转到微信分享。已保留系统分享或下载成绩照片。');
+    alert('分享图片失败');
   }
-}
-
-
-
-
-function setActiveNav(section){
-  ['navSchedule','navPlayers','navStats'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.classList.remove('active');
-  });
-  const map={schedule:'navSchedule',players:'navPlayers',stats:'navStats'};
-  const active=document.getElementById(map[section]||'navSchedule');
-  if(active) active.classList.add('active');
-}
-function scrollToSection(section){
-  const map={
-    schedule: document.getElementById('panel-schedule') || document.getElementById('scheduleAnchor') || document.getElementById('scheduleWrap'),
-    players: document.getElementById('panel-players') || document.getElementById('playersAnchor') || document.getElementById('playerGrid'),
-    stats: document.getElementById('panel-stats') || document.getElementById('statsAnchor') || document.getElementById('statsWrap')
-  };
-  const node = map[section] || map.schedule;
-  if(node){ node.scrollIntoView({behavior:'smooth', block:'start'}); }
-}
-function showSection(section){
-  const panelIds=['panel-schedule','panel-players','panel-stats'];
-  let hasPanels=false;
-  panelIds.forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){ hasPanels=true; el.classList.remove('active'); }
-  });
-  if(hasPanels){
-    const panel=document.getElementById('panel-'+section);
-    if(panel) panel.classList.add('active');
-  }
-  setActiveNav(section);
-  setTimeout(()=>scrollToSection(section), 60);
-}
-function navigateTo(section){
-  const h='#'+section;
-  if(location.hash===h){ showSection(section); }
-  else { location.hash=h; }
-}
-window.addEventListener('hashchange', ()=>{
-  const section=(location.hash||'#schedule').replace('#','');
-  showSection(section);
-});
-window.addEventListener('load', ()=>{
-  const section=(location.hash||'#schedule').replace('#','');
-  showSection(section);
-});
-});
-
-function showSection(section){
-  const map = {
-    schedule: 'panel-schedule',
-    players: 'panel-players',
-    stats: 'panel-stats'
-  };
-  Object.values(map).forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.classList.remove('active');
-  });
-  ['navSchedule','navPlayers','navStats'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.classList.remove('active');
-  });
-
-  const panel = document.getElementById(map[section]);
-  if(panel) panel.classList.add('active');
-
-  if(section === 'schedule'){
-    document.getElementById('navSchedule')?.classList.add('active');
-  }else if(section === 'players'){
-    document.getElementById('navPlayers')?.classList.add('active');
-  }else if(section === 'stats'){
-    document.getElementById('navStats')?.classList.add('active');
-  }
-  window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
 function generate(){
