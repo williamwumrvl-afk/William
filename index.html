@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>羽毛球双打工具 - 全搭档最少场次版</title>
+  <title>羽毛球双打工具 - 最少场次陪打版</title>
   <style>
     :root{
       --bg:#f4f7fb; --card:#fff; --primary:#0ea5e9; --accent:#f97316; --text:#0f172a; --muted:#64748b; --line:#e2e8f0;
       --ok:#16a34a; --warn:#d97706; --danger:#dc2626;
     }
     *{box-sizing:border-box}
-    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}
+    body{margin:0;font-family:"PingFang SC","SF Pro Text","SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}
     .app{max-width:940px;margin:0 auto;padding:16px 14px 28px}
     .hero{background:linear-gradient(135deg,#0ea5e9,#22c55e);color:#fff;border-radius:24px;padding:20px 18px;box-shadow:0 12px 30px rgba(14,165,233,.20)}
     .hero h1{margin:0 0 6px;font-size:28px}
@@ -30,321 +30,76 @@
     button{border:0;border-radius:14px;padding:12px 14px;cursor:pointer}
     .primary{background:var(--primary);color:#fff}
     .secondary{background:#eef6ff;color:#0b66a7}
-    .accent{background:var(--accent);color:#fff}
     .pill{display:inline-flex;align-items:center;padding:7px 10px;border-radius:999px;font-size:12px;margin:6px 8px 0 0;background:#f8fafc;border:1px solid var(--line)}
     .ok{color:var(--ok)} .warn{color:var(--warn)} .danger{color:var(--danger)}
     .schedule-round{border:1px solid var(--line);border-radius:18px;padding:14px;margin-top:10px}
-    .schedule-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}
-    .match{border-radius:16px;background:#f8fbff;padding:12px;margin-top:10px}
-    .match .match-title{font-size:12px;color:var(--muted);margin-bottom:6px}
-    .teamrow{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
-    @media (max-width:620px){.teamrow{grid-template-columns:1fr;}.scorewrap{justify-content:flex-start}}
-    .team{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px}
-    .scorewrap{display:flex;align-items:center;gap:8px;justify-content:center}
-    .scorewrap input{width:68px;text-align:center;padding:10px}
+    .schedule-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px dashed #d9e8f5}
+    .match{border-radius:16px;background:linear-gradient(180deg,#f8fbff,#ffffff);padding:9px 10px;margin-top:10px}
+    .teamrow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}
+    .team{background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px 10px;box-shadow:0 2px 10px rgba(14,165,233,.06);font-size:15px;line-height:1.26;font-weight:800;letter-spacing:.01em}
+    .team div{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .scorewrap{display:flex;align-items:center;gap:2px;justify-content:center}
+    .scorewrap input{width:48px;text-align:center;padding:6px 4px;font-size:15px;font-weight:800}
+    .scorewrap span{font-size:12px;font-weight:800}
     .player-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
     .player-chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px;cursor:pointer;text-align:center}
     .player-chip:hover{background:#f8fbff}
-    .stats-table{width:100%;border-collapse:collapse;font-size:14px}
-    .stats-table th,.stats-table td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:center}
-    .stats-table th:first-child,.stats-table td:first-child{text-align:left}
     dialog{border:0;border-radius:22px;padding:0;max-width:760px;width:calc(100% - 24px)}
     .dialog-card{padding:18px}
     .dialog-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
-    @media (max-width:700px){.dialog-grid{grid-template-columns:repeat(2,1fr)}}
     .mini{background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:10px}
     .small{font-size:12px;color:var(--muted)}
-  
-    @media (max-width: 600px){
+    .stats-hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 48%,#38bdf8);color:#fff;border-radius:22px;padding:14px 16px;margin-bottom:10px;box-shadow:0 14px 30px rgba(29,78,216,.22)}
+    .stats-hero h3{margin:0;font-size:24px;line-height:1.2}
+    .stats-hero p{margin:4px 0 0;opacity:.92;font-size:13px}
+    .stats-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+    .stats-card{background:linear-gradient(180deg,#ffffff,#f8fbff);border:1px solid #dbeafe;border-radius:18px;overflow:hidden;box-shadow:0 8px 20px rgba(15,23,42,.05)}
+    .stats-headbar,.stats-row{display:grid;grid-template-columns:58px 1.35fr .72fr .72fr .72fr .82fr;gap:6px;align-items:center}
+    .stats-headbar{padding:10px 10px;background:linear-gradient(90deg,#0f172a,#1e3a8a 65%,#2563eb);color:#e5f0ff;font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+    .stats-row{padding:9px 10px;border-top:1px solid #e5edf7;background:linear-gradient(180deg,#fff,#fbfdff)}
+    .stats-row:nth-child(even){background:linear-gradient(180deg,#f8fbff,#ffffff)}
+    .medal-wrap{display:flex;align-items:center;justify-content:flex-start}
+    .medal-photo,.medal-rank{width:40px;height:40px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center}
+    .medal-photo{position:relative;box-shadow: inset 0 2px 3px rgba(255,255,255,.55), 0 6px 14px rgba(15,23,42,.12);border:1px solid rgba(15,23,42,.08);overflow:hidden}
+    .medal-photo:before{content:'';position:absolute;inset:4px;border-radius:999px;border:1px solid rgba(255,255,255,.45)}
+    .medal-photo svg{width:24px;height:24px;position:relative;z-index:2}
+    .medal-gold{background:linear-gradient(145deg,#fff7bf 0%,#facc15 32%,#eab308 65%,#a16207 100%);color:#7c5700}
+    .medal-silver{background:linear-gradient(145deg,#ffffff 0%,#e2e8f0 36%,#cbd5e1 68%,#64748b 100%);color:#475569}
+    .medal-bronze{background:linear-gradient(145deg,#fed7aa 0%,#ea580c 36%,#c2410c 68%,#7c2d12 100%);color:#fff7ed}
+    .medal-rank{font-size:16px;font-weight:800;background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#1e3a8a;border:1px solid #bfdbfe}
+    .player-name-elite{font-size:17px !important;font-weight:900 !important}
+    .stat-pill{display:inline-flex;min-width:46px;justify-content:center;align-items:center;padding:7px 8px;border-radius:999px;font-weight:800;font-size:17px;background:#f8fafc;border:1px solid #e2e8f0}
+    .stat-win{color:#166534;background:#ecfdf5;border-color:#bbf7d0}
+    .stat-loss{color:#991b1b;background:#fef2f2;border-color:#fecaca}
+    .stat-diff{color:#0f172a;background:#eff6ff;border-color:#bfdbfe}
+    .stat-played{color:#1e3a8a;background:#eef6ff;border-color:#bfdbfe}
+    @media (max-width:700px){.dialog-grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:600px){
       .app{padding:10px}
       .hero h1{font-size:22px}
-      .teamrow{grid-template-columns:1fr}
-      .scorewrap{justify-content:flex-start}
-      .match{padding:10px}
       .card{padding:12px;border-radius:18px}
       .title{font-size:16px}
       textarea{min-height:140px}
       .player-grid{grid-template-columns:repeat(3,1fr)}
       .player-chip{padding:10px;font-size:12px}
-    }
-
-
-    .schedule-round .team{font-size:13px; line-height:1.35}
-    .schedule-round .match-title{font-size:11px}
-    .schedule-round .scorewrap input{font-size:13px; width:56px; padding:8px}
-    .schedule-round .scorewrap span{font-size:14px}
-    .schedule-round .teamrow{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center}
-    @media (max-width: 600px){
-      .schedule-round .teamrow{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) !important; gap:6px}
-      .schedule-round .team{padding:8px; font-size:12px}
-      .schedule-round .team div{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-      .schedule-round .scorewrap{justify-content:center}
-      .schedule-round .scorewrap input{width:46px; padding:7px; font-size:12px}
-      .schedule-round .scorewrap span{font-size:13px}
-      .schedule-round .match{padding:8px}
-      .schedule-round .schedule-head strong{font-size:14px}
-    }
-
-
-    .stats-hero{
-      background: linear-gradient(135deg, #0f172a, #1d4ed8 48%, #38bdf8);
-      color:#fff; border-radius:22px; padding:18px; margin-bottom:14px;
-      box-shadow:0 14px 30px rgba(29,78,216,.22);
-      position:relative; overflow:hidden;
-    }
-    .stats-hero:after{
-      content:''; position:absolute; right:-30px; top:-30px; width:140px; height:140px;
-      border-radius:50%; background:rgba(255,255,255,.08);
-    }
-    .stats-hero h3{margin:0; font-size:22px; letter-spacing:.5px}
-    .stats-hero p{margin:6px 0 0; opacity:.9; font-size:13px}
-    .stats-actions{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px}
-    .stats-card{
-      background:linear-gradient(180deg,#ffffff,#f8fbff);
-      border:1px solid #dbeafe; border-radius:20px; overflow:hidden;
-      box-shadow:0 8px 20px rgba(15,23,42,.05);
-    }
-    .stats-headbar{
-      display:grid; grid-template-columns:64px 1.5fr .8fr .8fr .8fr .9fr;
-      gap:8px; padding:12px 14px;
-      background:linear-gradient(90deg,#0f172a,#1e3a8a 65%,#2563eb);
-      color:#e5f0ff; font-size:12px; text-transform:uppercase; letter-spacing:.08em;
-    }
-    .stats-row{
-      display:grid; grid-template-columns:64px 1.5fr .8fr .8fr .8fr .9fr;
-      gap:8px; padding:12px 14px; align-items:center;
-      border-top:1px solid #e5edf7;
-      background:linear-gradient(180deg,#fff,#fbfdff);
-    }
-    .stats-row:nth-child(even){background:linear-gradient(180deg,#f8fbff,#ffffff)}
-    .rank-badge{
-      display:inline-flex; align-items:center; justify-content:center;
-      width:42px; height:42px; border-radius:999px; font-size:18px; font-weight:800;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 4px 10px rgba(15,23,42,.10);
-      border:1px solid rgba(15,23,42,.08);
-    }
-    .medal-gold{background:linear-gradient(135deg,#fff7cc,#facc15); color:#7c5700}
-    .medal-silver{background:linear-gradient(135deg,#f8fafc,#cbd5e1); color:#475569}
-    .medal-bronze{background:linear-gradient(135deg,#fde7d8,#c2410c); color:#fff}
-    .rank-plain{background:linear-gradient(135deg,#eff6ff,#dbeafe); color:#1e3a8a}
-    .player-name-elite{font-weight:800; font-size:15px; letter-spacing:.01em}
-    .player-sub{font-size:11px; color:#64748b; margin-top:2px}
-    .stat-pill{
-      display:inline-flex; min-width:54px; justify-content:center; align-items:center;
-      padding:8px 10px; border-radius:999px; font-weight:800; font-size:14px;
-      background:#f8fafc; border:1px solid #e2e8f0;
-    }
-    .stat-win{color:#166534; background:#ecfdf5; border-color:#bbf7d0}
-    .stat-loss{color:#991b1b; background:#fef2f2; border-color:#fecaca}
-    .stat-diff{color:#0f172a; background:#eff6ff; border-color:#bfdbfe}
-    .stat-played{color:#1e3a8a; background:#eef6ff; border-color:#bfdbfe}
-    .share-shot{
-      background:radial-gradient(circle at top left, rgba(56,189,248,.22), transparent 35%),
-                 radial-gradient(circle at top right, rgba(250,204,21,.18), transparent 28%),
-                 linear-gradient(145deg,#07132a,#0b2048 55%,#123a8b);
-      color:#fff; border-radius:28px; padding:18px; width:900px; max-width:100%;
-      box-shadow:0 16px 40px rgba(2,8,23,.25);
-    }
-    .share-shot .share-title{font-size:28px; font-weight:900; letter-spacing:.06em}
-    .share-shot .share-sub{font-size:13px; opacity:.88; margin-top:4px}
-    .share-score-table{margin-top:16px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:22px; overflow:hidden; backdrop-filter: blur(6px)}
-    .share-row, .share-head{
-      display:grid; grid-template-columns:76px 1.7fr .9fr .9fr .9fr .9fr;
-      gap:10px; padding:12px 16px; align-items:center;
-    }
-    .share-head{background:rgba(255,255,255,.10); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#dbeafe}
-    .share-row{border-top:1px solid rgba(255,255,255,.10)}
-    .share-row:nth-child(even){background:rgba(255,255,255,.04)}
-    .share-name{font-size:16px; font-weight:800}
-    .share-tag{display:inline-flex; align-items:center; justify-content:center; width:50px; height:50px; border-radius:999px; font-size:22px; font-weight:900}
-    .share-foot{display:flex; justify-content:space-between; gap:14px; margin-top:14px; color:#dbeafe; font-size:12px}
-    @media (max-width: 600px){
-      .stats-hero h3{font-size:18px}
-      .stats-headbar,.stats-row{grid-template-columns:56px 1.4fr .7fr .7fr .7fr .8fr; padding:10px}
-      .player-name-elite{font-size:13px}
-      .stat-pill{min-width:42px; padding:7px 6px; font-size:12px}
-      .share-shot{width:760px; padding:16px}
-      .share-shot .share-title{font-size:24px}
-      .share-row,.share-head{grid-template-columns:64px 1.6fr .8fr .8fr .8fr .8fr; gap:8px; padding:10px 12px}
-      .share-name{font-size:14px}
-      .share-tag{width:42px; height:42px; font-size:18px}
-    }
-
-
-    .stats-headbar, .stats-row{
-      text-align:left !important;
-    }
-    .stats-headbar div, .stats-row div{
-      justify-content:flex-start !important;
-      text-align:left !important;
-    }
-    .share-head, .share-row{
-      text-align:left !important;
-    }
-    .share-head div, .share-row div{
-      text-align:left !important;
-    }
-
-
-    .medal-wrap{
-      display:flex; align-items:center; justify-content:flex-start;
-    }
-    .medal-photo{
-      width:46px; height:46px; border-radius:999px; position:relative;
-      display:inline-flex; align-items:center; justify-content:center;
-      box-shadow: inset 0 2px 3px rgba(255,255,255,.55), 0 6px 14px rgba(15,23,42,.12);
-      border:1px solid rgba(15,23,42,.08);
-      overflow:hidden;
-    }
-    .medal-photo:before{
-      content:''; position:absolute; inset:4px; border-radius:999px;
-      border:1px solid rgba(255,255,255,.45);
-    }
-    .medal-photo:after{
-      content:''; position:absolute; top:7px; left:10px; width:14px; height:8px;
-      border-radius:50%; background:rgba(255,255,255,.28); transform:rotate(-25deg);
-      filter:blur(.2px);
-    }
-    .medal-photo svg{width:28px; height:28px; position:relative; z-index:2}
-    .medal-gold{
-      background:
-        radial-gradient(circle at 30% 28%, #fff7bf 0%, rgba(255,247,191,.95) 14%, rgba(255,247,191,0) 34%),
-        linear-gradient(145deg,#fff7bf 0%,#facc15 32%,#eab308 65%,#a16207 100%);
-      color:#7c5700;
-    }
-    .medal-silver{
-      background:
-        radial-gradient(circle at 30% 28%, #ffffff 0%, rgba(255,255,255,.95) 14%, rgba(255,255,255,0) 34%),
-        linear-gradient(145deg,#ffffff 0%,#e2e8f0 36%,#cbd5e1 68%,#64748b 100%);
-      color:#475569;
-    }
-    .medal-bronze{
-      background:
-        radial-gradient(circle at 30% 28%, #ffe7d6 0%, rgba(255,231,214,.95) 14%, rgba(255,231,214,0) 34%),
-        linear-gradient(145deg,#fed7aa 0%,#ea580c 36%,#c2410c 68%,#7c2d12 100%);
-      color:#fff7ed;
-    }
-    .medal-rank{
-      width:46px; height:46px; border-radius:999px;
-      display:inline-flex; align-items:center; justify-content:center;
-      font-size:16px; font-weight:800;
-      background:linear-gradient(135deg,#eff6ff,#dbeafe);
-      color:#1e3a8a; border:1px solid #bfdbfe;
-    }
-    .cn-subtitle{font-size:12px;color:#64748b;margin-top:2px}
-
-
-    .stats-hero{padding:14px 16px !important; margin-bottom:10px !important}
-    .stats-hero h3{font-size:24px !important; line-height:1.2 !important}
-    .stats-hero p{font-size:13px !important; margin-top:4px !important}
-    .stats-actions{gap:8px !important; margin-bottom:10px !important}
-    .stats-actions button{padding:10px 12px !important; font-size:14px !important}
-    .stats-card{border-radius:18px !important}
-    .stats-headbar{
-      grid-template-columns:58px 1.35fr .72fr .72fr .72fr .82fr !important;
-      gap:6px !important;
-      padding:10px 10px !important;
-      font-size:12px !important;
-    }
-    .stats-row{
-      grid-template-columns:58px 1.35fr .72fr .72fr .72fr .82fr !important;
-      gap:6px !important;
-      padding:9px 10px !important;
-    }
-    .medal-photo,.medal-rank,.rank-badge{width:40px !important; height:40px !important}
-    .player-name-elite{font-size:17px !important; font-weight:900 !important}
-    .stat-pill{
-      min-width:46px !important;
-      padding:7px 8px !important;
-      font-size:17px !important;
-      border-radius:999px !important;
-    }
-    .share-shot{
-      width:min(100vw - 24px, 720px) !important;
-      padding:16px !important;
-      border-radius:22px !important;
-    }
-    .share-shot .share-title{
-      font-size:clamp(22px, 5.5vw, 32px) !important;
-      line-height:1.15 !important;
-    }
-    .share-shot .share-sub{
-      font-size:clamp(12px, 3vw, 15px) !important;
-    }
-    .share-score-table{margin-top:12px !important; border-radius:18px !important}
-    .share-head, .share-row{
-      grid-template-columns:62px 1.35fr .75fr .75fr .75fr .8fr !important;
-      gap:6px !important;
-      padding:10px 10px !important;
-    }
-    .share-head{
-      font-size:11px !important;
-    }
-    .share-name{
-      font-size:clamp(14px, 3.8vw, 20px) !important;
-      line-height:1.15 !important;
-    }
-    .share-tag,.share-row .medal-photo,.share-row .medal-rank{
-      width:40px !important; height:40px !important;
-    }
-    .share-foot{
-      font-size:11px !important;
-      margin-top:10px !important;
-    }
-    @media (max-width:600px){
-      .stats-hero{padding:12px 12px !important}
-      .stats-hero h3{font-size:20px !important}
-      .stats-headbar{
-        grid-template-columns:50px 1.2fr .66fr .66fr .66fr .74fr !important;
-        gap:4px !important;
-        padding:8px 8px !important;
-        font-size:11px !important;
-      }
-      .stats-row{
-        grid-template-columns:50px 1.2fr .66fr .66fr .66fr .74fr !important;
-        gap:4px !important;
-        padding:8px 8px !important;
-      }
+      .teamrow{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) !important;gap:6px}
+      .team{padding:7px 8px;font-size:14px;font-weight:800}
+      .scorewrap input{width:40px;padding:5px 4px;font-size:14px;font-weight:800}
+      .scorewrap span{font-size:11px;font-weight:800}
+      .stats-headbar,.stats-row{grid-template-columns:50px 1.2fr .66fr .66fr .66fr .74fr;gap:4px;padding:8px}
       .player-name-elite{font-size:15px !important}
-      .medal-photo,.medal-rank,.rank-badge{width:34px !important; height:34px !important}
-      .stat-pill{
-        min-width:40px !important;
-        padding:6px 6px !important;
-        font-size:15px !important;
-      }
-      .stats-actions{
-        display:grid !important;
-        grid-template-columns:1fr 1fr !important;
-      }
-      .stats-actions button{
-        width:100% !important;
-        font-size:13px !important;
-      }
-      .share-shot{
-        width:min(100vw - 16px, 520px) !important;
-        padding:12px !important;
-      }
-      .share-head, .share-row{
-        grid-template-columns:48px 1.15fr .62fr .62fr .62fr .68fr !important;
-        gap:4px !important;
-        padding:8px 8px !important;
-      }
-      .share-name{
-        font-size:clamp(12px, 4vw, 16px) !important;
-      }
-      .share-tag,.share-row .medal-photo,.share-row .medal-rank{
-        width:34px !important; height:34px !important;
-      }
+      .medal-photo,.medal-rank{width:34px;height:34px}
+      .stat-pill{min-width:40px;padding:6px 6px;font-size:15px}
+      .stats-actions{display:grid;grid-template-columns:1fr 1fr}
+      .stats-actions button{width:100%;font-size:13px}
     }
-
-</style>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  </style>
 </head>
 <body>
 <div class="app">
   <div class="hero">
     <h1>羽毛球双打工具</h1>
-    <p>基于 equal matches 版升级：必须保证每个人都至少和其他每个人搭档一次，且每个人比赛场次相同；系统会按人数自动算出最少轮次，并优先用满 2 块场地。所有参赛成员都可直接录入比分。</p>
+    <p>目标：保证每个人正式参赛场次完全相同；每个人都与其他人至少搭配一次；两块场地尽量用满；必要时允许 1 场陪打局。</p>
   </div>
 
   <div class="grid two">
@@ -369,27 +124,27 @@ Jenny</textarea>
       <div class="btns">
         <button class="primary" id="generateBtn">自动生成最少场次</button>
         <button class="secondary" id="copyShareBtn">复制群文案</button>
-              </div>
+      </div>
       <div id="coverageTags"></div>
       <div id="metaText" class="sub" style="margin-top:10px"></div>
     </div>
 
     <div class="card">
-      <div class="title">规则结果说明</div>
+      <div class="title">规则说明</div>
       <div class="sub">
-        <div>1. 硬性目标：每个人都至少和其他所有人搭档一次。</div>
-        <div>2. 硬性目标：每个人比赛场次相同。</div>
-        <div>3. 自动按人数计算最少轮次，不需要手工填轮数。</div>
-        <div>4. 每轮最多 2 场，优先把 2 块场地用满。</div>
-        <div>5. 所有参赛成员都可以直接录入比分，不区分管理员。</div>
-        <div>6. 只显示本次比赛个人成绩 summary：本场、胜、负、净胜分。</div>
+        <div>1. 每个参赛人都至少和其他所有人搭档一次。</div>
+        <div>2. 每个人正式参赛场次完全相同。</div>
+        <div>3. 优先让 2 块场地每轮都满载运行。</div>
+        <div>4. 总比赛场次按最少原则生成；必要时补 1 场陪打局完成未覆盖搭档。</div>
+        <div>5. 陪打人员不计入正式参赛名单、场次和成绩统计。</div>
       </div>
     </div>
   </div>
 
   <div class="grid two">
     <div class="card">
-      <div class="title">对阵表</div><div class="sub">所有参赛成员都可以直接点击输入比分；手机竖屏下对阵与比分保持同一行显示。</div>
+      <div class="title">对阵表</div>
+      <div class="sub">只显示第几轮；比分可直接录入。</div>
       <div id="scheduleWrap"></div>
     </div>
     <div class="card">
@@ -400,7 +155,6 @@ Jenny</textarea>
 
   <div class="card">
     <div class="title">个人成绩统计</div>
-    <div class="sub" style="margin-bottom:10px">采用国际比赛风格的统计展示，自动标识前三名，并支持一键导出成绩图片分享。</div>
     <div id="statsWrap"></div>
   </div>
 </div>
@@ -416,13 +170,25 @@ Jenny</textarea>
 </dialog>
 
 <script>
+const PLAYER_STORAGE_KEY = 'badminton_players_autosave_v2';
+function savePlayers(){
+  const el = document.getElementById('playerText');
+  if(el) localStorage.setItem(PLAYER_STORAGE_KEY, el.value || '');
+}
+function loadPlayers(){
+  const saved = localStorage.getItem(PLAYER_STORAGE_KEY);
+  const el = document.getElementById('playerText');
+  if(saved && el) el.value = saved;
+}
+
 const state = {
   players: [],
   rounds: [],
+  matchCount: 0,
   targetMatches: 0,
-  minRounds: 0,
   coverage: 0,
   totalPairs: 0,
+  usedSparring: false,
   standings: []
 };
 
@@ -460,129 +226,152 @@ function split4(group){
     [[group[0],group[3]],[group[1],group[2]]]
   ];
 }
-function minTargetAndRounds(n){
-  // each match creates 1 partner relationship for each player.
-  // to partner with n-1 others, each player needs at least n-1 matches.
-  // also 8 player-slots per round on 2 courts, so n*m must be divisible by 8.
+function calcTargetMatches(n){
   let m = n - 1;
   while((n * m) % 8 !== 0) m++;
-  return { targetMatches: m, minRounds: (n * m) / 8 };
+  return m;
 }
 function countPairCoverage(rounds){
   const set = new Set();
   rounds.forEach(rd => rd.matches.forEach(m => {
-    set.add(pairKey(m.teamA[0], m.teamA[1]));
-    set.add(pairKey(m.teamB[0], m.teamB[1]));
+    if(!m.sparring){
+      set.add(pairKey(m.teamA[0], m.teamA[1]));
+      set.add(pairKey(m.teamB[0], m.teamB[1]));
+    }else{
+      if(!m.teamA.some(x => x.startsWith('陪打'))) set.add(pairKey(m.teamA[0], m.teamA[1]));
+      if(!m.teamB.some(x => x.startsWith('陪打'))) set.add(pairKey(m.teamB[0], m.teamB[1]));
+    }
   }));
   return set.size;
 }
-function fullCoverage(rounds, names){
-  const need = totalPartnerPairs(names.length);
-  return countPairCoverage(rounds) === need;
-}
-function buildScheduleAttempt(inputNames){
-  const names = inputNames.slice();
+function generateEqualSchedule(names){
   const n = names.length;
-  const rule = minTargetAndRounds(n);
-  const target = rule.targetMatches;
-  const totalRounds = rule.minRounds;
+  const targetMatches = calcTargetMatches(n);
+  const totalRounds = (n * targetMatches) / 8;
+  let best = null;
 
-  const remain = Object.fromEntries(names.map(x => [x, target]));
-  const pairCount = {};
-  const oppCount = {};
-  const rounds = [];
+  for(let attempt=0; attempt<300; attempt++){
+    const remain = Object.fromEntries(names.map(x => [x, targetMatches]));
+    const pairCount = {};
+    const oppCount = {};
+    const rounds = [];
+    let ok = true;
 
-  for(let roundNo=1; roundNo<=totalRounds; roundNo++){
-    // choose 8 with highest remaining need
-    const ordered = shuffle(names).sort((a,b) => (remain[b]-remain[a]) || 0);
-    const top = ordered.slice(0, 8);
+    for(let roundNo=1; roundNo<=totalRounds; roundNo++){
+      const eligible = shuffle(names.filter(x => remain[x] > 0))
+        .sort((a,b) => remain[b] - remain[a] || Math.random() - 0.5)
+        .slice(0, 8);
 
-    if(top.length < 8 || top.some(x => remain[x] <= 0)){
-      return null;
-    }
+      if(eligible.length < 8){ ok = false; break; }
 
-    // choose court grouping and team split maximizing NEW partner pairs, minimizing repeats
-    let best = null;
-    let bestScore = -Infinity;
-    const fixed = top[0];
-    const rest = top.slice(1);
-    const g1Options = allCombos(rest, 3).map(c => [fixed].concat(c));
+      let bestRound = null, bestScore = -Infinity;
+      const fixed = eligible[0];
+      const rest = eligible.slice(1);
+      const g1Options = allCombos(rest, 3).map(c => [fixed].concat(c));
 
-    for(const g1 of g1Options){
-      const g1Set = new Set(g1);
-      const g2 = top.filter(x => !g1Set.has(x));
-
-      for(const s1 of split4(g1)){
-        for(const s2 of split4(g2)){
-          const pairs = [pairKey(s1[0][0], s1[0][1]), pairKey(s1[1][0], s1[1][1]), pairKey(s2[0][0], s2[0][1]), pairKey(s2[1][0], s2[1][1])];
-          const newPairs = pairs.filter(k => !pairCount[k]).length;
-          const repeatPenalty = pairs.reduce((acc, k) => acc + (pairCount[k] || 0), 0);
-          let oppPenalty = 0;
-          for(const a of s1[0]) for(const b of s1[1]) oppPenalty += (oppCount[pairKey(a,b)] || 0);
-          for(const a of s2[0]) for(const b of s2[1]) oppPenalty += (oppCount[pairKey(a,b)] || 0);
-          const roundNeed = top.reduce((acc, x) => acc + remain[x], 0);
-          const score = newPairs * 200 - repeatPenalty * 40 - oppPenalty * 3 + roundNeed + Math.random();
-          if(score > bestScore){
-            bestScore = score;
-            best = {
-              matches: [
-                { courtNo: 1, teamA: s1[0], teamB: s1[1], scoreA: '', scoreB: '' },
-                { courtNo: 2, teamA: s2[0], teamB: s2[1], scoreA: '', scoreB: '' }
-              ],
-              selected: top.slice()
-            };
+      for(const g1 of g1Options){
+        const set1 = new Set(g1);
+        const g2 = eligible.filter(x => !set1.has(x));
+        for(const s1 of split4(g1)){
+          for(const s2 of split4(g2)){
+            const pairs = [pairKey(s1[0][0],s1[0][1]), pairKey(s1[1][0],s1[1][1]), pairKey(s2[0][0],s2[0][1]), pairKey(s2[1][0],s2[1][1])];
+            const newPairs = pairs.filter(k => !pairCount[k]).length;
+            const repeatPenalty = pairs.reduce((acc,k)=>acc + (pairCount[k]||0), 0);
+            let oppPenalty = 0;
+            for(const a of s1[0]) for(const b of s1[1]) oppPenalty += (oppCount[pairKey(a,b)]||0);
+            for(const a of s2[0]) for(const b of s2[1]) oppPenalty += (oppCount[pairKey(a,b)]||0);
+            const remainScore = eligible.reduce((acc,x)=>acc+remain[x],0);
+            const score = newPairs*180 - repeatPenalty*30 - oppPenalty*2 + remainScore + Math.random();
+            if(score > bestScore){
+              bestScore = score;
+              bestRound = {
+                selected: eligible.slice(),
+                matches: [
+                  { teamA: s1[0], teamB: s1[1], sparring:false, scoreA:'', scoreB:'' },
+                  { teamA: s2[0], teamB: s2[1], sparring:false, scoreA:'', scoreB:'' }
+                ]
+              };
+            }
           }
         }
       }
+
+      if(!bestRound){ ok = false; break; }
+
+      bestRound.selected.forEach(x => remain[x]--);
+      bestRound.matches.forEach(m => {
+        const p1 = pairKey(m.teamA[0],m.teamA[1]);
+        const p2 = pairKey(m.teamB[0],m.teamB[1]);
+        pairCount[p1] = (pairCount[p1]||0)+1;
+        pairCount[p2] = (pairCount[p2]||0)+1;
+        for(const a of m.teamA) for(const b of m.teamB){
+          const okk = pairKey(a,b);
+          oppCount[okk] = (oppCount[okk]||0)+1;
+        }
+      });
+
+      const selectedSet = new Set(bestRound.selected);
+      rounds.push({
+        round: roundNo,
+        bye: names.filter(x => !selectedSet.has(x)),
+        matches: bestRound.matches
+      });
     }
 
-    if(!best) return null;
+    if(!ok) continue;
+    if(names.some(x => remain[x] !== 0)) continue;
 
-    best.selected.forEach(x => remain[x]--);
-    best.matches.forEach(m => {
-      const p1 = pairKey(m.teamA[0], m.teamA[1]);
-      const p2 = pairKey(m.teamB[0], m.teamB[1]);
-      pairCount[p1] = (pairCount[p1] || 0) + 1;
-      pairCount[p2] = (pairCount[p2] || 0) + 1;
-      for(const a of m.teamA) for(const b of m.teamB){
-        const ok = pairKey(a,b);
-        oppCount[ok] = (oppCount[ok] || 0) + 1;
-      }
-    });
-
-    const selectedSet = new Set(best.selected);
-    rounds.push({
-      round: roundNo,
-      bye: names.filter(x => !selectedSet.has(x)),
-      matches: best.matches
-    });
+    const coverage = countPairCoverage(rounds);
+    if(!best || coverage > best.coverage){
+      best = { rounds, coverage, targetMatches, usedSparring:false };
+      if(coverage === totalPartnerPairs(n)) break;
+    }
   }
 
-  // exact equal match count
-  const allZero = names.every(x => remain[x] === 0);
-  if(!allZero) return null;
+  if(!best) throw new Error('当前人数在限定尝试内未排出等场次方案，请再点一次生成。');
+
+  if(best.coverage < totalPartnerPairs(n)){
+    const existing = new Set();
+    best.rounds.forEach(rd => rd.matches.forEach(m => {
+      if(!m.teamA.some(x => x.startsWith('陪打'))) existing.add(pairKey(m.teamA[0], m.teamA[1]));
+      if(!m.teamB.some(x => x.startsWith('陪打'))) existing.add(pairKey(m.teamB[0], m.teamB[1]));
+    }));
+
+    let missing = null;
+    for(let i=0;i<names.length;i++){
+      for(let j=i+1;j<names.length;j++){
+        const k = pairKey(names[i], names[j]);
+        if(!existing.has(k)){ missing = [names[i], names[j]]; break; }
+      }
+      if(missing) break;
+    }
+
+    if(missing){
+      best.rounds.push({
+        round: best.rounds.length + 1,
+        bye: names.filter(x => !missing.includes(x)),
+        matches: [{
+          teamA: missing,
+          teamB: ['陪打A','陪打B'],
+          sparring:true,
+          scoreA:'',
+          scoreB:''
+        }]
+      });
+      best.coverage += 1;
+      best.usedSparring = true;
+    }
+  }
 
   return {
-    rounds,
-    coverage: countPairCoverage(rounds),
+    rounds: best.rounds,
+    matchCount: best.rounds.reduce((s,rd)=>s+rd.matches.length,0),
+    targetMatches,
+    coverage: best.coverage,
     totalPairs: totalPartnerPairs(n),
-    targetMatches: target,
-    minRounds: totalRounds
+    usedSparring: best.usedSparring
   };
 }
-function generateSchedule(names){
-  let best = null;
-  const attempts = 220;
-  for(let i=0;i<attempts;i++){
-    const res = buildScheduleAttempt(shuffle(names));
-    if(!res) continue;
-    if(fullCoverage(res.rounds, names)) return res;
-    if(!best || res.coverage > best.coverage) best = res;
-  }
-  if(best && fullCoverage(best.rounds, names)) return best;
-  throw new Error('这组人数在当前规则下未在限定尝试内排出完整方案，请再点一次生成。');
-}
-
 function getStandings(){
   const map = {};
   for(const name of state.players){
@@ -594,21 +383,23 @@ function getStandings(){
 
   state.rounds.forEach(rd => {
     rd.matches.forEach(m => {
-      const all = m.teamA.concat(m.teamB);
-      all.forEach(p => { if(map[p]) map[p].played++; });
-      map[m.teamA[0]].partners.add(m.teamA[1]); map[m.teamA[1]].partners.add(m.teamA[0]);
-      map[m.teamB[0]].partners.add(m.teamB[1]); map[m.teamB[1]].partners.add(m.teamB[0]);
-      m.teamA.forEach(a => m.teamB.forEach(b => { map[a].opponents.add(b); map[b].opponents.add(a); }));
+      const all = m.teamA.concat(m.teamB).filter(p => map[p]);
+      all.forEach(p => { map[p].played++; });
+      if(map[m.teamA[0]] && map[m.teamA[1]]){ map[m.teamA[0]].partners.add(m.teamA[1]); map[m.teamA[1]].partners.add(m.teamA[0]); }
+      if(map[m.teamB[0]] && map[m.teamB[1]]){ map[m.teamB[0]].partners.add(m.teamB[1]); map[m.teamB[1]].partners.add(m.teamB[0]); }
+      m.teamA.forEach(a => m.teamB.forEach(b => { if(map[a] && map[b]){ map[a].opponents.add(b); map[b].opponents.add(a); } }));
 
       const a = Number(m.scoreA), b = Number(m.scoreB);
       const scored = m.scoreA !== '' && m.scoreB !== '' && !Number.isNaN(a) && !Number.isNaN(b);
       if(!scored) return;
 
       m.teamA.forEach(p => {
+        if(!map[p]) return;
         map[p].diff += a - b;
         if(a > b) map[p].win++; else if(a < b) map[p].loss++;
       });
       m.teamB.forEach(p => {
+        if(!map[p]) return;
         map[p].diff += b - a;
         if(b > a) map[p].win++; else if(b < a) map[p].loss++;
       });
@@ -629,11 +420,13 @@ function renderTags(){
   document.getElementById('coverageTags').innerHTML = `
     <span class="pill">搭档覆盖 ${state.coverage}/${state.totalPairs}</span>
     <span class="pill ${allPartnered ? 'ok' : 'danger'}">${allPartnered ? '每个人都已和其他所有人搭档' : '搭档覆盖未完成'}</span>
-    <span class="pill ${allPlayedEqual() ? 'ok' : 'danger'}">${allPlayedEqual() ? '所有人场次相同' : '场次不相同'}</span>
-    <span class="pill">目标每人 ${state.targetMatches} 场</span>
-    <span class="pill">自动最少 ${state.minRounds} 轮</span>
+    <span class="pill ${allPlayedEqual() ? 'ok' : 'danger'}">${allPlayedEqual() ? '所有人场次完全相同' : '场次不相同'}</span>
+    <span class="pill">每人 ${state.targetMatches} 场</span>
+    <span class="pill">总场次 ${state.matchCount}</span>
+    <span class="pill">总轮次 ${state.rounds.length}</span>
+    <span class="pill ${state.usedSparring ? 'warn' : 'ok'}">${state.usedSparring ? '已启用 1 场陪打' : '未启用陪打'}</span>
   `;
-  document.getElementById('metaText').innerHTML = `当前 ${state.players.length} 人参赛。系统按“每个人至少和其他所有人搭档一次 + 每个人场次相同”自动算出的最少结果为：<strong>${state.minRounds}</strong> 轮、每人 <strong>${state.targetMatches}</strong> 场。`;
+  document.getElementById('metaText').innerHTML = `当前 ${state.players.length} 人参赛。正式参赛成员每人 <strong>${state.targetMatches}</strong> 场，且场次完全相同；系统共排出 <strong>${state.matchCount}</strong> 场、<strong>${state.rounds.length}</strong> 轮。${state.usedSparring ? ' 最后一轮含 1 场陪打局，不计入正式球员场次。' : ''}`;
 }
 function renderSchedule(){
   const wrap = document.getElementById('scheduleWrap');
@@ -647,7 +440,6 @@ function renderSchedule(){
       const match = document.createElement('div');
       match.className = 'match';
       match.innerHTML = `
-        <div class="match-title">场地 ${m.courtNo}</div>
         <div class="teamrow">
           <div class="team"><div>${m.teamA[0]}</div><div>${m.teamA[1]}</div></div>
           <div class="scorewrap">
@@ -657,6 +449,7 @@ function renderSchedule(){
           </div>
           <div class="team"><div>${m.teamB[0]}</div><div>${m.teamB[1]}</div></div>
         </div>
+        ${m.sparring ? '<div class="small" style="margin-top:6px">本场为陪打补位局</div>' : ''}
       `;
       box.appendChild(match);
     });
@@ -685,26 +478,22 @@ function renderPlayers(){
     grid.appendChild(el);
   });
 }
-
 function medalSVG(idx){
   if(idx === 0){
-    return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.35 4.76 5.25.76-3.8 3.7.9 5.23L12 14l-4.7 2.47.9-5.23-3.8-3.7 5.25-.76L12 2z"/></svg>`;
+    return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.35 4.76 5.25.76-3.8 3.7.9 5.23L12 14l-4.7 2.47.9-5.23-3.8-3.7 5.25-.76L12 2z"/></svg>`;
   }
   if(idx === 1){
-    return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l6 3v5c0 4.1-2.55 7.78-6 9-3.45-1.22-6-4.9-6-9V6l6-3zm0 4.2l-2.05 4.15L5.4 12l3.28 3.2-.78 4.52L12 17.54l4.1 2.18-.78-4.52L18.6 12l-4.55-.65L12 7.2z"/></svg>`;
+    return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l6 3v5c0 4.1-2.55 7.78-6 9-3.45-1.22-6-4.9-6-9V6l6-3zm0 4.2l-2.05 4.15L5.4 12l3.28 3.2-.78 4.52L12 17.54l4.1 2.18-.78-4.52L18.6 12l-4.55-.65L12 7.2z"/></svg>`;
   }
-  return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 2h10v3h2a1 1 0 0 1 1 1c0 3.2-1.9 5.74-4.72 6.57A5.98 5.98 0 0 1 13 15.92V18h3v2H8v-2h3v-2.08a5.98 5.98 0 0 1-2.28-3.35C5.9 11.74 4 9.2 4 6a1 1 0 0 1 1-1h2V2zm10 5V5h-1v4.54A4.98 4.98 0 0 0 17 7zM7 9.54V5H6v2c0 2.01.84 3.6 1 2.54z"/></svg>`;
+  return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10v3h2a1 1 0 0 1 1 1c0 3.2-1.9 5.74-4.72 6.57A5.98 5.98 0 0 1 13 15.92V18h3v2H8v-2h3v-2.08a5.98 5.98 0 0 1-2.28-3.35C5.9 11.74 4 9.2 4 6a1 1 0 0 1 1-1h2V2zm10 5V5h-1v4.54A4.98 4.98 0 0 0 17 7zM7 9.54V5H6v2c0 2.01.84 3.6 1 2.54z"/></svg>`;
 }
-
 function renderStats(){
   const wrap = document.getElementById('statsWrap');
   const medalClass = idx => idx === 0 ? 'medal-gold' : idx === 1 ? 'medal-silver' : idx === 2 ? 'medal-bronze' : 'rank-plain';
   const rows = state.standings.map((p, idx) => `
     <div class="stats-row">
       <div class="medal-wrap">${idx < 3 ? `<span class="medal-photo ${medalClass(idx)}">${medalSVG(idx)}</span>` : `<span class="medal-rank">${idx + 1}</span>`}</div>
-      <div>
-        <button class="secondary player-name-elite" style="padding:8px 12px;border-radius:12px" onclick="openPlayerModal('${p.name.replace(/'/g,"\'")}')">${p.name}</button>
-      </div>
+      <div><button class="secondary player-name-elite" style="padding:8px 12px;border-radius:12px" onclick="openPlayerModal('${p.name.replace(/'/g,"\\'")}')">${p.name}</button></div>
       <div><span class="stat-pill stat-played">${p.played}</span></div>
       <div><span class="stat-pill stat-win">${p.win}</span></div>
       <div><span class="stat-pill stat-loss">${p.loss}</span></div>
@@ -713,20 +502,11 @@ function renderStats(){
   wrap.innerHTML = `
     <div class="stats-hero">
       <h3>个人成绩统计</h3>
-      <p>按本场成绩自动排名：胜场优先，其次净胜分。前三名使用金 / 银 / 铜奖牌标识。</p>
+      <p>陪打人员不计入这里的统计。</p>
     </div>
-    <div class="sub" style="margin:6px 0 10px">生成后可直接保存成绩照片；在微信内或支持系统分享的手机浏览器中，可继续转发到微信好友或群。照片版式会按手机屏幕自动缩放。</div><div class="stats-actions">
-      <button class="primary" onclick="shareStatsImage()">生成成绩照片</button>
-      <button class="secondary" onclick="downloadStatsImage()">下载照片</button>
-    </div>
-    <div class="stats-card" id="statsShareCard">
+    <div class="stats-card">
       <div class="stats-headbar">
-        <div>名次</div>
-        <div>参赛人员</div>
-        <div>本场</div>
-        <div>胜</div>
-        <div>负</div>
-        <div>净胜分</div>
+        <div>名次</div><div>参赛人员</div><div>本场</div><div>胜</div><div>负</div><div>净胜分</div>
       </div>
       ${rows}
     </div>
@@ -740,18 +520,18 @@ function openPlayerModal(name){
     rd.matches.forEach(m => {
       const inA = m.teamA.includes(name), inB = m.teamB.includes(name);
       if(!inA && !inB) return;
+      const myTeam = inA ? m.teamA : m.teamB;
       const partner = inA ? m.teamA.find(x => x !== name) : m.teamB.find(x => x !== name);
       const opponents = inA ? m.teamB : m.teamA;
       items.push(`
         <div class="match">
-          <div><strong>第 ${rd.round} 轮</strong> · 场地 ${m.courtNo}</div>
-          <div class="small" style="margin-top:6px">搭档：${partner}</div>
+          <div><strong>第 ${rd.round} 轮</strong>${m.sparring ? ' · 陪打局' : ''}</div>
+          <div class="small" style="margin-top:6px">本方组合：${myTeam.join(' / ')}</div>
           <div class="small">对手：${opponents.join(' / ')}</div>
           <div class="small">比分：${m.scoreA !== '' && m.scoreB !== '' ? `${m.scoreA}:${m.scoreB}` : '未录入'}</div>
         </div>`);
     });
   });
-
   document.getElementById('playerDialogTitle').textContent = name + ' 的对阵情况';
   document.getElementById('playerDialogBody').innerHTML = `
     <div class="dialog-grid">
@@ -768,125 +548,36 @@ function copyShare(){
   if(!state.rounds.length){ alert('请先生成比赛'); return; }
   const lines = [`【${document.getElementById('matchTitle').value || '羽毛球双打赛'}】`];
   lines.push(`人数：${state.players.length}人`);
-  lines.push(`自动最少轮次：${state.minRounds}轮`);
-  lines.push(`目标每人场次：${state.targetMatches}场`);
+  lines.push(`每人场次：${state.targetMatches}`);
+  lines.push(`总场次：${state.matchCount}`);
+  lines.push(`总轮次：${state.rounds.length}`);
   lines.push(`搭档覆盖：${state.coverage}/${state.totalPairs}`);
+  if(state.usedSparring) lines.push('含 1 场陪打局');
   lines.push('');
   state.rounds.forEach(rd => {
     lines.push(`第${rd.round}轮`);
-    rd.matches.forEach(m => lines.push(`场地${m.courtNo}：${m.teamA[0]}/${m.teamA[1]} VS ${m.teamB[0]}/${m.teamB[1]}${m.scoreA !== '' && m.scoreB !== '' ? `（${m.scoreA}:${m.scoreB}）` : ''}`));
+    rd.matches.forEach(m => lines.push(`${m.teamA[0]}/${m.teamA[1]} VS ${m.teamB[0]}/${m.teamB[1]}${m.scoreA !== '' && m.scoreB !== '' ? `（${m.scoreA}:${m.scoreB}）` : ''}`));
     if(rd.bye.length) lines.push(`轮空：${rd.bye.join('、')}`);
     lines.push('');
   });
   navigator.clipboard.writeText(lines.join('\n')).then(() => alert('已复制群文案')).catch(() => alert('复制失败'));
 }
-
-function buildShareCardHTML(){
-  const medalClass = idx => idx === 0 ? 'medal-gold' : idx === 1 ? 'medal-silver' : idx === 2 ? 'medal-bronze' : 'rank-plain';
-  const rows = state.standings.map((p, idx) => `
-    <div class="share-row">
-      <div>${idx < 3 ? `<span class="medal-photo ${medalClass(idx)}">${medalSVG(idx)}</span>` : `<span class="medal-rank">${idx + 1}</span>`}</div>
-      <div>
-        <div class="share-name">${p.name}</div>
-        
-      </div>
-      <div>${p.played}</div>
-      <div>${p.win}</div>
-      <div>${p.loss}</div>
-      <div>${p.diff > 0 ? '+' + p.diff : p.diff}</div>
-    </div>
-  `).join('');
-  return `
-    <div class="share-shot" id="shareShotInner">
-      <div class="share-title">羽毛球个人成绩统计</div>
-      <div class="share-sub">${document.getElementById('matchTitle').value || '羽毛球双打赛'} · 专业比赛数据海报</div>
-      <div class="share-score-table">
-        <div class="share-head">
-          <div>名次</div>
-          <div>参赛人员</div>
-          <div>本场</div>
-          <div>胜</div>
-          <div>负</div>
-          <div>净胜分</div>
-        </div>
-        ${rows}
-      </div>
-      <div class="share-foot">
-        <div>由羽毛球排赛工具生成</div>
-        <div>${state.players.length} Players · ${state.minRounds} Rounds</div>
-      </div>
-    </div>
-  `;
-}
-async function exportStatsCanvas(){
-  if(!state.standings.length){ alert('请先生成比赛'); return null; }
-  const holder = document.createElement('div');
-  holder.style.position = 'fixed';
-  holder.style.left = '-99999px';
-  holder.style.top = '0';
-  holder.innerHTML = buildShareCardHTML();
-  document.body.appendChild(holder);
-  const node = holder.firstElementChild;
-  try{
-    const canvas = await html2canvas(node, {backgroundColor: null, scale: 2, useCORS: true});
-    document.body.removeChild(holder);
-    return canvas;
-  }catch(err){
-    document.body.removeChild(holder);
-    throw err;
-  }
-}
-async function downloadStatsImage(){
-  try{
-    const canvas = await exportStatsCanvas();
-    if(!canvas) return;
-    const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
-    a.download = 'badminton_match_summary.png';
-    a.click();
-  }catch(err){
-    alert('导出图片失败');
-  }
-}
-async function shareStatsImage(){
-  try{
-    const canvas = await exportStatsCanvas();
-    if(!canvas) return;
-    canvas.toBlob(async (blob) => {
-      if(!blob){ alert('生成图片失败'); return; }
-      const file = new File([blob], 'badminton_match_summary.png', {type:'image/png'});
-      if(navigator.canShare && navigator.canShare({files:[file]})){
-        try{
-          await navigator.share({files:[file], title:'个人成绩统计', text:'羽毛球比赛个人成绩统计照片，可直接分享至微信'});
-        }catch(err){}
-      }else{
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'badminton_match_summary.png';
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-        alert('当前手机浏览器不支持系统分享，已改为下载图片。');
-      }
-    }, 'image/png');
-  }catch(err){
-    alert('分享图片失败');
-  }
-}
-
 function generate(){
+  savePlayers();
   const names = uniqNames(document.getElementById('playerText').value);
   if(names.length < 8 || names.length > 12){
     alert('请输入 8-12 位不重复的参赛人员');
     return;
   }
   try{
-    const result = generateSchedule(names);
+    const result = generateEqualSchedule(names);
     state.players = names.slice();
     state.rounds = result.rounds;
     state.coverage = result.coverage;
     state.totalPairs = result.totalPairs;
+    state.matchCount = result.matchCount;
+    state.usedSparring = result.usedSparring;
     state.targetMatches = result.targetMatches;
-    state.minRounds = result.minRounds;
     state.standings = getStandings();
     renderTags();
     renderSchedule();
@@ -896,9 +587,10 @@ function generate(){
     alert(err.message || '生成失败，请再试一次');
   }
 }
-
 document.getElementById('generateBtn').addEventListener('click', generate);
 document.getElementById('copyShareBtn').addEventListener('click', copyShare);
+document.getElementById('playerText').addEventListener('input', savePlayers);
+loadPlayers();
 generate();
 </script>
 </body>
