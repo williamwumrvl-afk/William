@@ -277,6 +277,20 @@
       .icon-btn svg{width:22px;height:22px}
     }
 
+
+    .stats-hero h3{font-size:28px !important}
+    .stats-headbar{font-size:14px !important}
+    .stats-row{padding:14px 16px !important}
+    .player-name-elite{font-size:20px !important; font-weight:900 !important}
+    .stat-pill{min-width:66px !important; padding:10px 14px !important; font-size:20px !important; line-height:1 !important}
+    .player-sub{display:none !important}
+    @media (max-width:600px){
+      .stats-hero h3{font-size:22px !important}
+      .stats-headbar{font-size:12px !important}
+      .player-name-elite{font-size:18px !important}
+      .stat-pill{min-width:54px !important; padding:9px 10px !important; font-size:18px !important}
+    }
+
 </style>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
@@ -347,19 +361,19 @@ Jenny</textarea>
 
   <div class="grid two">
     <div class="card">
-      <div class="title">对阵表</div><div class="sub">所有参赛成员都可以直接点击输入比分；手机竖屏下对阵与比分保持同一行显示。</div>
+      <div id="scheduleAnchor" class="title">对阵表</div><div class="sub">所有参赛成员都可以直接点击输入比分；手机竖屏下对阵与比分保持同一行显示。</div>
       <div id="scheduleWrap"></div>
     </div>
     <div class="card">
-      <div class="title">球员</div>
-      <div class="player-grid" id="playerGrid"></div>
+      <div id="playersAnchor" class="title">球员</div>
+      <div id="panel-players"><div class="player-grid" id="playerGrid"></div></div>
     </div>
   </div>
 
   <div class="card">
-    <div class="title">个人成绩统计</div>
+    <div id="statsAnchor" class="title">个人成绩统计</div>
     <div class="sub" style="margin-bottom:10px">采用国际比赛风格的统计展示，自动标识前三名，并支持一键导出成绩图片分享。</div>
-    <div id="statsWrap"></div>
+    <div id="panel-stats"><div id="statsWrap"></div></div>
   </div>
 </div>
 
@@ -673,8 +687,8 @@ function renderStats(){
       <h3>个人成绩统计</h3>
       <p>按本场成绩自动排名：胜场优先，其次净胜分。前三名使用金 / 银 / 铜奖牌标识。</p>
     </div>
-    <div class="stats-actions">
-      <button class="primary" onclick="shareStatsImage()">一键分享个人成绩照片</button>
+    <div class="sub" style="margin:6px 0 10px">说明：普通 HTML 页面不能直接强制跳转到微信分享。支持系统分享的手机浏览器会优先调起系统分享；不支持时会自动下载成绩照片，方便再发到微信。</div><div class="stats-actions">
+      <button class="primary" onclick="shareStatsImage()">一键分享成绩照片</button>
       <button class="secondary" onclick="downloadStatsImage()">下载成绩照片</button>
     </div>
     <div class="stats-card" id="statsShareCard">
@@ -823,29 +837,62 @@ async function shareStatsImage(){
         a.download = 'badminton_match_summary.png';
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-        alert('当前手机浏览器不支持系统分享，已改为下载图片。');
+        alert('当前浏览器不能直接拉起微信分享，已改为下载成绩照片，你可以在微信里手动发送这张图片。');
       }
     }, 'image/png');
   }catch(err){
-    alert('分享图片失败');
+    alert('当前页面不能直接跳转到微信分享。已保留系统分享或下载成绩照片。');
   }
 }
 
 
 
-function navigateTo(section){
-  location.hash = section;
-  showSection(section);
-}
 
-window.addEventListener('hashchange', () => {
-  const section = location.hash.replace('#','') || 'schedule';
+function setActiveNav(section){
+  ['navSchedule','navPlayers','navStats'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.classList.remove('active');
+  });
+  const map={schedule:'navSchedule',players:'navPlayers',stats:'navStats'};
+  const active=document.getElementById(map[section]||'navSchedule');
+  if(active) active.classList.add('active');
+}
+function scrollToSection(section){
+  const map={
+    schedule: document.getElementById('panel-schedule') || document.getElementById('scheduleAnchor') || document.getElementById('scheduleWrap'),
+    players: document.getElementById('panel-players') || document.getElementById('playersAnchor') || document.getElementById('playerGrid'),
+    stats: document.getElementById('panel-stats') || document.getElementById('statsAnchor') || document.getElementById('statsWrap')
+  };
+  const node = map[section] || map.schedule;
+  if(node){ node.scrollIntoView({behavior:'smooth', block:'start'}); }
+}
+function showSection(section){
+  const panelIds=['panel-schedule','panel-players','panel-stats'];
+  let hasPanels=false;
+  panelIds.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){ hasPanels=true; el.classList.remove('active'); }
+  });
+  if(hasPanels){
+    const panel=document.getElementById('panel-'+section);
+    if(panel) panel.classList.add('active');
+  }
+  setActiveNav(section);
+  setTimeout(()=>scrollToSection(section), 60);
+}
+function navigateTo(section){
+  const h='#'+section;
+  if(location.hash===h){ showSection(section); }
+  else { location.hash=h; }
+}
+window.addEventListener('hashchange', ()=>{
+  const section=(location.hash||'#schedule').replace('#','');
   showSection(section);
 });
-
-window.addEventListener('load', () => {
-  const section = location.hash.replace('#','') || 'schedule';
+window.addEventListener('load', ()=>{
+  const section=(location.hash||'#schedule').replace('#','');
   showSection(section);
+});
 });
 
 function showSection(section){
