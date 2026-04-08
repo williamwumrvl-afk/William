@@ -99,7 +99,7 @@
 <div class="app">
   <div class="hero">
     <h1>羽毛球双打工具</h1>
-    <p>目标：保证每个人正式参赛场次完全相同；每个人都与其他人至少搭配一次；两块场地尽量用满；必要时允许 1 场陪打局。</p>
+    <p>目标：保证每个人正式参赛场次完全相同；每个人都与其他人至少搭配一次；最多只允许其中 1 位搭档重复一次；总场次尽量最少；必要时允许 1 场或 2 场陪打局。</p>
   </div>
 
   <div class="grid two">
@@ -133,10 +133,10 @@ Jenny</textarea>
       <div class="title">规则说明</div>
       <div class="sub">
         <div>1. 每个参赛人都至少和其他所有人搭档一次。</div>
-        <div>2. 每个人正式参赛场次完全相同。</div>
-        <div>3. 优先让 2 块场地每轮都满载运行。</div>
-        <div>4. 总比赛场次按最少原则生成；必要时补 1 场陪打局完成未覆盖搭档。</div>
-        <div>5. 陪打人员不计入正式参赛名单、场次和成绩统计。</div>
+        <div>2. 最多只允许其中 1 位搭档重复一次。</div>
+        <div>3. 每个人正式参赛场次完全相同。</div>
+        <div>4. 总比赛场次按最少原则生成，两个场地优先尽量用满。</div>
+        <div>5. 必要时可使用 1 场或 2 场陪打局；陪打人员不计入正式参赛名单、场次和成绩统计。</div>
       </div>
     </div>
   </div>
@@ -208,170 +208,68 @@ function uniqNames(text){
   return out;
 }
 function totalPartnerPairs(n){ return n*(n-1)/2; }
-function allCombos(arr, k){
-  const res = [];
-  function dfs(start, path){
-    if(path.length === k){ res.push(path.slice()); return; }
-    for(let i=start; i<=arr.length-(k-path.length); i++){
-      path.push(arr[i]); dfs(i+1, path); path.pop();
-    }
-  }
-  dfs(0, []);
-  return res;
+
+const SCHEDULE_TEMPLATES = {"8": [[["reg", [0, 1], [2, 3]]], [["reg", [2, 6], [1, 7]]], [["reg", [3, 4], [1, 5]]], [["reg", [3, 5], [1, 4]]], [["reg", [4, 6], [0, 7]]], [["reg", [5, 6], [0, 3]]], [["reg", [5, 7], [0, 2]]], [["reg", [6, 7], [2, 4]]], [["reg", [2, 7], [1, 3]], ["reg", [4, 5], [0, 6]]], [["reg", [3, 6], [1, 2]], ["reg", [4, 7], [0, 5]]], [["reg", [3, 7], [0, 4]], ["reg", [2, 5], [1, 6]]]], "9": [[["reg", [0, 1], [2, 3]]], [["reg", [0, 3], [2, 4]]], [["reg", [4, 6], [1, 2]]], [["reg", [4, 8], [0, 5]]], [["reg", [5, 6], [0, 7]]], [["reg", [5, 7], [2, 8]]], [["reg", [3, 4], [1, 8]], ["reg", [0, 6], [2, 7]]], [["reg", [3, 5], [1, 6]], ["reg", [4, 7], [0, 8]]], [["reg", [3, 7], [1, 5]], ["reg", [6, 8], [0, 2]]], [["reg", [3, 8], [1, 4]], ["reg", [6, 7], [2, 5]]], [["reg", [5, 8], [0, 4]], ["reg", [3, 6], [1, 7]]], [["reg", [7, 8], [2, 6]], ["reg", [4, 5], [1, 3]]]], "10": [[["reg", [3, 6], [2, 5]]], [["reg", [3, 8], [1, 9]]], [["reg", [4, 5], [1, 8]]], [["reg", [5, 6], [1, 2]]], [["reg", [5, 7], [0, 9]]], [["reg", [6, 9], [0, 4]]], [["reg", [7, 8], [2, 9]]], [["reg", [3, 4], [2, 7]], ["reg", [6, 8], [0, 5]]], [["reg", [3, 5], [2, 6]], ["reg", [8, 9], [0, 1]]], [["reg", [3, 9], [1, 4]], ["reg", [5, 8], [0, 7]]], [["reg", [4, 7], [1, 6]], ["reg", [0, 3], [2, 8]]], [["reg", [4, 8], [1, 5]], ["reg", [7, 9], [0, 2]]], [["reg", [5, 9], [0, 6]], ["reg", [3, 7], [2, 4]]], [["reg", [6, 7], [0, 8]], ["reg", [4, 9], [1, 3]]], [["spar", [2, 3], null], ["reg", [4, 6], [1, 7]]]], "11": [[["reg", [3, 10], [2, 4]], ["reg", [5, 7], [1, 6]]], [["reg", [3, 5], [2, 10]], ["reg", [4, 8], [1, 9]]], [["reg", [3, 9], [2, 5]], ["reg", [4, 7], [1, 10]]], [["reg", [4, 10], [1, 5]], ["reg", [3, 8], [2, 7]]], [["reg", [5, 6], [1, 7]], ["reg", [8, 10], [0, 2]]], [["reg", [5, 8], [1, 4]], ["reg", [6, 7], [0, 10]]], [["reg", [6, 10], [0, 7]], ["reg", [4, 9], [1, 8]]], [["reg", [6, 8], [0, 9]], ["reg", [5, 10], [1, 2]]], [["reg", [7, 10], [0, 4]], ["reg", [3, 6], [2, 9]]], [["reg", [7, 8], [0, 6]], ["reg", [5, 9], [1, 3]]], [["reg", [7, 9], [0, 5]], ["reg", [4, 6], [2, 3]]], [["reg", [8, 9], [0, 3]], ["reg", [4, 5], [2, 6]]], [["reg", [9, 10], [0, 1]], ["reg", [3, 7], [2, 8]]], [["spar", [3, 4], null], ["reg", [6, 9], [0, 8]]]], "12": [[["reg", [0, 1], [3, 4]]], [["reg", [3, 10], [2, 11]], ["reg", [5, 9], [1, 8]]], [["reg", [3, 11], [2, 4]], ["reg", [5, 8], [1, 9]]], [["reg", [4, 11], [2, 3]], ["reg", [7, 10], [0, 9]]], [["reg", [4, 8], [2, 7]], ["reg", [5, 11], [1, 6]]], [["reg", [4, 9], [2, 6]], ["reg", [5, 7], [1, 10]]], [["reg", [5, 10], [1, 7]], ["reg", [0, 8], [3, 6]]], [["reg", [6, 10], [1, 2]], ["reg", [0, 4], [3, 5]]], [["reg", [6, 11], [0, 7]], ["reg", [4, 5], [2, 10]]], [["reg", [6, 7], [1, 5]], ["reg", [8, 11], [3, 9]]], [["reg", [6, 8], [1, 4]], ["reg", [9, 11], [0, 2]]], [["reg", [7, 11], [3, 8]], ["reg", [4, 6], [2, 9]]], [["reg", [7, 8], [0, 11]], ["reg", [4, 10], [2, 5]]], [["reg", [7, 9], [0, 10]], ["reg", [5, 6], [1, 11]]], [["reg", [8, 10], [0, 5]], ["reg", [6, 9], [1, 3]]], [["reg", [8, 9], [0, 6]], ["reg", [10, 11], [3, 7]]], [["reg", [9, 10], [0, 3]], ["reg", [4, 7], [2, 8]]]]};
+
+function buildRoundsFromTemplate(names){
+  const tpl = SCHEDULE_TEMPLATES[String(names.length)];
+  if(!tpl) throw new Error('当前版本只支持 8-12 人');
+  return tpl.map((roundDef, idx) => {
+    const matches = roundDef.map((m, mIdx) => {
+      const kind = m[0];
+      const teamA = m[1].map(i => names[i]);
+      const teamB = kind === 'reg' ? m[2].map(i => names[i]) : ['陪打A','陪打B'];
+      return {
+        teamA,
+        teamB,
+        sparring: kind === 'spar',
+        scoreA: '',
+        scoreB: ''
+      };
+    });
+    const active = new Set();
+    matches.forEach(mt => {
+      mt.teamA.concat(mt.teamB).forEach(p => { if(names.includes(p)) active.add(p); });
+    });
+    return {
+      round: idx + 1,
+      bye: names.filter(n => !active.has(n)),
+      matches
+    };
+  });
 }
-function split4(group){
-  return [
-    [[group[0],group[1]],[group[2],group[3]]],
-    [[group[0],group[2]],[group[1],group[3]]],
-    [[group[0],group[3]],[group[1],group[2]]]
-  ];
-}
+
 function calcTargetMatches(n){
-  let m = n - 1;
-  while((n * m) % 8 !== 0) m++;
-  return m;
+  // In the precomputed templates below, every formal player partners every other player exactly once.
+  // So the formal match count per player is n-1, which is also the minimum possible.
+  return n - 1;
 }
+
 function countPairCoverage(rounds){
   const set = new Set();
   rounds.forEach(rd => rd.matches.forEach(m => {
-    if(!m.sparring){
-      set.add(pairKey(m.teamA[0], m.teamA[1]));
-      set.add(pairKey(m.teamB[0], m.teamB[1]));
-    }else{
-      if(!m.teamA.some(x => x.startsWith('陪打'))) set.add(pairKey(m.teamA[0], m.teamA[1]));
-      if(!m.teamB.some(x => x.startsWith('陪打'))) set.add(pairKey(m.teamB[0], m.teamB[1]));
-    }
+    if(m.teamA.every(x => !x.startsWith('陪打'))) set.add(pairKey(m.teamA[0], m.teamA[1]));
+    if(m.teamB.every(x => !x.startsWith('陪打'))) set.add(pairKey(m.teamB[0], m.teamB[1]));
   }));
   return set.size;
 }
+
 function generateEqualSchedule(names){
-  const n = names.length;
-  const targetMatches = calcTargetMatches(n);
-  const totalRounds = (n * targetMatches) / 8;
-  let best = null;
-
-  for(let attempt=0; attempt<300; attempt++){
-    const remain = Object.fromEntries(names.map(x => [x, targetMatches]));
-    const pairCount = {};
-    const oppCount = {};
-    const rounds = [];
-    let ok = true;
-
-    for(let roundNo=1; roundNo<=totalRounds; roundNo++){
-      const eligible = shuffle(names.filter(x => remain[x] > 0))
-        .sort((a,b) => remain[b] - remain[a] || Math.random() - 0.5)
-        .slice(0, 8);
-
-      if(eligible.length < 8){ ok = false; break; }
-
-      let bestRound = null, bestScore = -Infinity;
-      const fixed = eligible[0];
-      const rest = eligible.slice(1);
-      const g1Options = allCombos(rest, 3).map(c => [fixed].concat(c));
-
-      for(const g1 of g1Options){
-        const set1 = new Set(g1);
-        const g2 = eligible.filter(x => !set1.has(x));
-        for(const s1 of split4(g1)){
-          for(const s2 of split4(g2)){
-            const pairs = [pairKey(s1[0][0],s1[0][1]), pairKey(s1[1][0],s1[1][1]), pairKey(s2[0][0],s2[0][1]), pairKey(s2[1][0],s2[1][1])];
-            const newPairs = pairs.filter(k => !pairCount[k]).length;
-            const repeatPenalty = pairs.reduce((acc,k)=>acc + (pairCount[k]||0), 0);
-            let oppPenalty = 0;
-            for(const a of s1[0]) for(const b of s1[1]) oppPenalty += (oppCount[pairKey(a,b)]||0);
-            for(const a of s2[0]) for(const b of s2[1]) oppPenalty += (oppCount[pairKey(a,b)]||0);
-            const remainScore = eligible.reduce((acc,x)=>acc+remain[x],0);
-            const score = newPairs*180 - repeatPenalty*30 - oppPenalty*2 + remainScore + Math.random();
-            if(score > bestScore){
-              bestScore = score;
-              bestRound = {
-                selected: eligible.slice(),
-                matches: [
-                  { teamA: s1[0], teamB: s1[1], sparring:false, scoreA:'', scoreB:'' },
-                  { teamA: s2[0], teamB: s2[1], sparring:false, scoreA:'', scoreB:'' }
-                ]
-              };
-            }
-          }
-        }
-      }
-
-      if(!bestRound){ ok = false; break; }
-
-      bestRound.selected.forEach(x => remain[x]--);
-      bestRound.matches.forEach(m => {
-        const p1 = pairKey(m.teamA[0],m.teamA[1]);
-        const p2 = pairKey(m.teamB[0],m.teamB[1]);
-        pairCount[p1] = (pairCount[p1]||0)+1;
-        pairCount[p2] = (pairCount[p2]||0)+1;
-        for(const a of m.teamA) for(const b of m.teamB){
-          const okk = pairKey(a,b);
-          oppCount[okk] = (oppCount[okk]||0)+1;
-        }
-      });
-
-      const selectedSet = new Set(bestRound.selected);
-      rounds.push({
-        round: roundNo,
-        bye: names.filter(x => !selectedSet.has(x)),
-        matches: bestRound.matches
-      });
-    }
-
-    if(!ok) continue;
-    if(names.some(x => remain[x] !== 0)) continue;
-
-    const coverage = countPairCoverage(rounds);
-    if(!best || coverage > best.coverage){
-      best = { rounds, coverage, targetMatches, usedSparring:false };
-      if(coverage === totalPartnerPairs(n)) break;
-    }
-  }
-
-  if(!best) throw new Error('当前人数在限定尝试内未排出等场次方案，请再点一次生成。');
-
-  if(best.coverage < totalPartnerPairs(n)){
-    const existing = new Set();
-    best.rounds.forEach(rd => rd.matches.forEach(m => {
-      if(!m.teamA.some(x => x.startsWith('陪打'))) existing.add(pairKey(m.teamA[0], m.teamA[1]));
-      if(!m.teamB.some(x => x.startsWith('陪打'))) existing.add(pairKey(m.teamB[0], m.teamB[1]));
-    }));
-
-    let missing = null;
-    for(let i=0;i<names.length;i++){
-      for(let j=i+1;j<names.length;j++){
-        const k = pairKey(names[i], names[j]);
-        if(!existing.has(k)){ missing = [names[i], names[j]]; break; }
-      }
-      if(missing) break;
-    }
-
-    if(missing){
-      best.rounds.push({
-        round: best.rounds.length + 1,
-        bye: names.filter(x => !missing.includes(x)),
-        matches: [{
-          teamA: missing,
-          teamB: ['陪打A','陪打B'],
-          sparring:true,
-          scoreA:'',
-          scoreB:''
-        }]
-      });
-      best.coverage += 1;
-      best.usedSparring = true;
-    }
-  }
-
+  const rounds = buildRoundsFromTemplate(names);
+  const targetMatches = calcTargetMatches(names.length);
+  const coverage = countPairCoverage(rounds);
+  const sparCount = rounds.reduce((acc, rd) => acc + rd.matches.filter(m => m.sparring).length, 0);
   return {
-    rounds: best.rounds,
-    matchCount: best.rounds.reduce((s,rd)=>s+rd.matches.length,0),
+    rounds,
+    matchCount: rounds.reduce((s,rd)=>s+rd.matches.length,0),
     targetMatches,
-    coverage: best.coverage,
-    totalPairs: totalPartnerPairs(n),
-    usedSparring: best.usedSparring
+    coverage,
+    totalPairs: totalPartnerPairs(names.length),
+    usedSparring: sparCount > 0,
+    sparCount
   };
 }
+
 function getStandings(){
   const map = {};
   for(const name of state.players){
@@ -424,9 +322,9 @@ function renderTags(){
     <span class="pill">每人 ${state.targetMatches} 场</span>
     <span class="pill">总场次 ${state.matchCount}</span>
     <span class="pill">总轮次 ${state.rounds.length}</span>
-    <span class="pill ${state.usedSparring ? 'warn' : 'ok'}">${state.usedSparring ? '已启用 1 场陪打' : '未启用陪打'}</span>
+    <span class="pill ${state.usedSparring ? 'warn' : 'ok'}">${state.usedSparring ? `已启用 ${state.rounds.reduce((a,r)=>a+r.matches.filter(m=>m.sparring).length,0)} 场陪打` : '未启用陪打'}</span>
   `;
-  document.getElementById('metaText').innerHTML = `当前 ${state.players.length} 人参赛。正式参赛成员每人 <strong>${state.targetMatches}</strong> 场，且场次完全相同；系统共排出 <strong>${state.matchCount}</strong> 场、<strong>${state.rounds.length}</strong> 轮。${state.usedSparring ? ' 最后一轮含 1 场陪打局，不计入正式球员场次。' : ''}`;
+  document.getElementById('metaText').innerHTML = `当前 ${state.players.length} 人参赛。正式参赛成员每人 <strong>${state.targetMatches}</strong> 场，且场次完全相同；系统共排出 <strong>${state.matchCount}</strong> 场、<strong>${state.rounds.length}</strong> 轮。${state.usedSparring ? ` 其中含 ${state.rounds.reduce((a,r)=>a+r.matches.filter(m=>m.sparring).length,0)} 场陪打局，不计入正式球员场次。` : ''}`;
 }
 function renderSchedule(){
   const wrap = document.getElementById('scheduleWrap');
@@ -552,7 +450,7 @@ function copyShare(){
   lines.push(`总场次：${state.matchCount}`);
   lines.push(`总轮次：${state.rounds.length}`);
   lines.push(`搭档覆盖：${state.coverage}/${state.totalPairs}`);
-  if(state.usedSparring) lines.push('含 1 场陪打局');
+  if(state.usedSparring) lines.push(`含 ${state.rounds.reduce((a,r)=>a+r.matches.filter(m=>m.sparring).length,0)} 场陪打局`);
   lines.push('');
   state.rounds.forEach(rd => {
     lines.push(`第${rd.round}轮`);
