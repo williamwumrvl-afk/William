@@ -157,8 +157,9 @@ Jenny</textarea>
         <div>3. 为满足双场地优先，其他条件可适当放宽。</div>
         <div>4. 仍尽量让不同球员多换搭档。</div>
         <div>5. 必要时可使用 1 场或 2 场陪打局；陪打人员不计入正式参赛名单、场次和成绩统计。</div>
-        <div>6. 每个人最多轮空两轮。</div>
-        <div>7. 比分会自动实时保存到本地；支持同一浏览器多标签页即时刷新同步。</div>
+        <div>6. 同一轮次正式比赛中的两场比赛不能出现同一个人。</div>
+        <div>7. 每个人最多轮空两轮。</div>
+        <div>8. 比分会自动实时保存到本地；支持同一浏览器多标签页即时刷新同步。</div>
       </div>
     </div>
   </div>
@@ -344,20 +345,27 @@ function combineIntoRounds(matches){
     const used = matchUsesFormalPlayers(first);
     let bestIdx = -1;
     let bestScore = -1e9;
+
     for(let i=0;i<remaining.length;i++){
       const cand = remaining[i];
       const used2 = matchUsesFormalPlayers(cand);
       let overlap = 0;
       used2.forEach(p => { if(used.has(p)) overlap++; });
-      // strongly prefer no overlap so two courts can run simultaneously
+
+      // 硬约束：同一轮两场正式比赛不能出现同一个人
+      if(!first.sparring && !cand.sparring && overlap > 0){
+        continue;
+      }
+
       let score = overlap === 0 ? 1000 : -1000 * overlap;
-      // prefer pairing with same type (normal with normal)
       if(!!first.sparring === !!cand.sparring) score += 10;
+
       if(score > bestScore){
         bestScore = score;
         bestIdx = i;
       }
     }
+
     if(bestIdx >= 0 && bestScore > 0){
       const second = remaining.splice(bestIdx, 1)[0];
       rounds.push({matches:[first, second]});
@@ -506,9 +514,10 @@ function renderTags(){
     <span class="pill">总场次 ${state.matchCount}</span>
     <span class="pill">总轮次 ${state.rounds.length}</span>
     <span class="pill">尽量全员换搭档</span>
+    <span class="pill">同轮不重复上场</span>
     <span class="pill">每人最多轮空两轮</span>
   `;
-  document.getElementById('metaText').innerHTML = `当前 ${state.players.length} 人参赛。系统现在把“每一轮优先双场地同时进行”作为最高优先级；最多只允许最后 <strong>两轮</strong> 为单场地比赛，并控制每个人最多轮空 <strong>两轮</strong>。当前共排出 <strong>${state.matchCount}</strong> 场、<strong>${state.rounds.length}</strong> 轮。`;
+  document.getElementById('metaText').innerHTML = `当前 ${state.players.length} 人参赛。系统现在把“每一轮优先双场地同时进行”作为最高优先级；同一轮两场正式比赛不允许出现同一个人；最多只允许最后 <strong>两轮</strong> 为单场地比赛，并控制每个人最多轮空 <strong>两轮</strong>。当前共排出 <strong>${state.matchCount}</strong> 场、<strong>${state.rounds.length}</strong> 轮。`;
 }
 function renderSchedule(){
   const wrap = document.getElementById('scheduleWrap');
