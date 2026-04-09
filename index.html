@@ -26,6 +26,7 @@
     textarea{min-height:180px;resize:vertical}
     .row{display:flex;gap:10px;align-items:center}
     .row>*{flex:1}
+    .schedule-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap}
     .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
     button{border:0;border-radius:14px;padding:12px 14px;cursor:pointer}
     .primary{background:var(--primary);color:#fff}
@@ -34,9 +35,28 @@
     .ok{color:var(--ok)} .warn{color:var(--warn)} .danger{color:var(--danger)}
     .schedule-round{border:1px solid var(--line);border-radius:18px;padding:14px;margin-top:10px}
     .schedule-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px dashed #d9e8f5}
-    .match{border-radius:16px;background:linear-gradient(180deg,#f8fbff,#ffffff);padding:9px 10px;margin-top:10px}
+    .match{border-radius:16px;background:linear-gradient(180deg,#f8fbff,#ffffff);padding:9px 10px;margin-top:10px;border:1px solid rgba(14,165,233,.08)}
+    .match.sparring{
+      background:linear-gradient(180deg,#fff7ed,#fffbeb);
+      border:1px solid #fdba74;
+      box-shadow:0 6px 18px rgba(249,115,22,.10);
+    }
+    .match-badge{
+      display:inline-flex;align-items:center;gap:6px;
+      font-size:12px;font-weight:800;
+      padding:5px 10px;border-radius:999px;
+      margin-bottom:8px;
+      letter-spacing:.02em;
+    }
+    .match-badge.regular{
+      background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;
+    }
+    .match-badge.sparring{
+      background:#ffedd5;color:#9a3412;border:1px solid #fdba74;
+    }
     .teamrow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}
     .team{background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px 10px;box-shadow:0 2px 10px rgba(14,165,233,.06);font-size:15px;line-height:1.26;font-weight:800;letter-spacing:.01em}
+    .match.sparring .team{background:rgba(255,255,255,.72);border-color:#fed7aa}
     .team div{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
     .scorewrap{display:flex;align-items:center;gap:2px;justify-content:center}
     .scorewrap input{width:48px;text-align:center;padding:6px 4px;font-size:15px;font-weight:800}
@@ -99,7 +119,7 @@
 <div class="app">
   <div class="hero">
     <h1>羽毛球双打工具</h1>
-    <p>目标：保证每个人正式参赛场次完全相同；每个人都与其他人至少搭配一次；最多只允许其中 1 位搭档重复一次；总场次尽量最少；必要时允许 1 场或 2 场陪打局。</p>
+    <p>目标：每一轮优先安排两场比赛同时进行；最多只允许最后两轮只使用一个场地；其他条件可为满足双场地优先而适当放宽。</p>
   </div>
 
   <div class="grid two">
@@ -124,7 +144,7 @@ Jenny</textarea>
       <div class="btns">
         <button class="primary" id="generateBtn">自动生成最少场次</button>
         <button class="secondary" id="copyShareBtn">复制群文案</button>
-      </div>
+        </div>
       <div id="coverageTags"></div>
       <div id="metaText" class="sub" style="margin-top:10px"></div>
     </div>
@@ -132,19 +152,28 @@ Jenny</textarea>
     <div class="card">
       <div class="title">规则说明</div>
       <div class="sub">
-        <div>1. 每个参赛人都至少和其他所有人搭档一次。</div>
-        <div>2. 最多只允许其中 1 位搭档重复一次。</div>
-        <div>3. 每个人正式参赛场次完全相同。</div>
-        <div>4. 总比赛场次按最少原则生成，两个场地优先尽量用满。</div>
+        <div>1. 每一轮优先安排两场比赛同时进行。</div>
+        <div>2. 最多只允许最后两轮是单场地比赛。</div>
+        <div>3. 为满足双场地优先，其他条件可适当放宽。</div>
+        <div>4. 仍尽量让不同球员多换搭档。</div>
         <div>5. 必要时可使用 1 场或 2 场陪打局；陪打人员不计入正式参赛名单、场次和成绩统计。</div>
+        <div>6. 每个人最多轮空两轮。</div>
+        <div>7. 比分会自动实时保存到本地；支持同一浏览器多标签页即时刷新同步。</div>
       </div>
     </div>
   </div>
 
   <div class="grid two">
     <div class="card">
-      <div class="title">对阵表</div>
-      <div class="sub">只显示第几轮；比分可直接录入。</div>
+      <div class="row schedule-toolbar" style="justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="title" style="margin:0">对阵表</div>
+          <div class="sub" style="margin:0">只显示第几轮；比分可直接录入。正式比赛与补位局 / 友谊局已做颜色区分。</div>
+        </div>
+        <div style="flex:0 0 auto">
+          <button class="secondary" id="refreshBtn" title="刷新本地最新比分" style="padding:8px 12px;white-space:nowrap">刷新比分</button>
+        </div>
+      </div>
       <div id="scheduleWrap"></div>
     </div>
     <div class="card">
@@ -181,6 +210,51 @@ function loadPlayers(){
   if(saved && el) el.value = saved;
 }
 
+const SCORE_STATE_STORAGE_KEY = 'badminton_score_state_v1';
+
+function buildStatePayload(){
+  return {
+    players: state.players,
+    rounds: state.rounds,
+    matchCount: state.matchCount,
+    targetMatches: state.targetMatches,
+    coverage: state.coverage,
+    totalPairs: state.totalPairs,
+    usedSparring: state.usedSparring,
+    savedAt: Date.now()
+  };
+}
+function saveScoreState(){
+  try{
+    if(!state.rounds || !state.rounds.length) return;
+    localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(buildStatePayload()));
+  }catch(err){}
+}
+function loadScoreState(){
+  try{
+    const raw = localStorage.getItem(SCORE_STATE_STORAGE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(!data || !Array.isArray(data.rounds) || !Array.isArray(data.players)) return false;
+    state.players = data.players || [];
+    state.rounds = data.rounds || [];
+    state.matchCount = data.matchCount || 0;
+    state.targetMatches = data.targetMatches || 0;
+    state.coverage = data.coverage || 0;
+    state.totalPairs = data.totalPairs || 0;
+    state.usedSparring = !!data.usedSparring;
+    state.standings = getStandings();
+    renderTags();
+    renderSchedule();
+    renderPlayers();
+    renderStats();
+    saveScoreState();
+    return true;
+  }catch(err){
+    return false;
+  }
+}
+
 const state = {
   players: [],
   rounds: [],
@@ -215,7 +289,7 @@ function buildRoundsFromTemplate(names){
   const tpl = SCHEDULE_TEMPLATES[String(names.length)];
   if(!tpl) throw new Error('当前版本只支持 8-12 人');
   return tpl.map((roundDef, idx) => {
-    const matches = roundDef.map((m, mIdx) => {
+    const matches = roundDef.map(m => {
       const kind = m[0];
       const teamA = m[1].map(i => names[i]);
       const teamB = kind === 'reg' ? m[2].map(i => names[i]) : ['陪打A','陪打B'];
@@ -228,9 +302,7 @@ function buildRoundsFromTemplate(names){
       };
     });
     const active = new Set();
-    matches.forEach(mt => {
-      mt.teamA.concat(mt.teamB).forEach(p => { if(names.includes(p)) active.add(p); });
-    });
+    matches.forEach(mt => mt.teamA.concat(mt.teamB).forEach(p => { if(names.includes(p)) active.add(p); }));
     return {
       round: idx + 1,
       bye: names.filter(n => !active.has(n)),
@@ -239,34 +311,145 @@ function buildRoundsFromTemplate(names){
   });
 }
 
-function calcTargetMatches(n){
-  // In the precomputed templates below, every formal player partners every other player exactly once.
-  // So the formal match count per player is n-1, which is also the minimum possible.
-  return n - 1;
-}
-
 function countPairCoverage(rounds){
   const set = new Set();
   rounds.forEach(rd => rd.matches.forEach(m => {
-    if(m.teamA.every(x => !x.startsWith('陪打'))) set.add(pairKey(m.teamA[0], m.teamA[1]));
-    if(m.teamB.every(x => !x.startsWith('陪打'))) set.add(pairKey(m.teamB[0], m.teamB[1]));
+    if(m.teamA.every(x => !String(x).startsWith('陪打'))) set.add(pairKey(m.teamA[0], m.teamA[1]));
+    if(m.teamB.every(x => !String(x).startsWith('陪打'))) set.add(pairKey(m.teamB[0], m.teamB[1]));
   }));
   return set.size;
 }
 
+function countSingleCourtRounds(rounds){
+  return rounds.filter(r => (r.matches || []).length === 1).length;
+}
+
+function matchUsesFormalPlayers(match){
+  const s = new Set();
+  match.teamA.concat(match.teamB).forEach(p => {
+    if(!String(p).startsWith('陪打')) s.add(p);
+  });
+  return s;
+}
+
+function combineIntoRounds(matches){
+  const remaining = matches.slice();
+  const rounds = [];
+  while(remaining.length){
+    const first = remaining.shift();
+    if(remaining.length === 0){
+      rounds.push({matches:[first]});
+      break;
+    }
+    const used = matchUsesFormalPlayers(first);
+    let bestIdx = -1;
+    let bestScore = -1e9;
+    for(let i=0;i<remaining.length;i++){
+      const cand = remaining[i];
+      const used2 = matchUsesFormalPlayers(cand);
+      let overlap = 0;
+      used2.forEach(p => { if(used.has(p)) overlap++; });
+      // strongly prefer no overlap so two courts can run simultaneously
+      let score = overlap === 0 ? 1000 : -1000 * overlap;
+      // prefer pairing with same type (normal with normal)
+      if(!!first.sparring === !!cand.sparring) score += 10;
+      if(score > bestScore){
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+    if(bestIdx >= 0 && bestScore > 0){
+      const second = remaining.splice(bestIdx, 1)[0];
+      rounds.push({matches:[first, second]});
+    } else {
+      rounds.push({matches:[first]});
+    }
+  }
+  return rounds;
+}
+
+function reorderRounds(rounds, names){
+  const full = rounds.filter(r => (r.matches || []).length >= 2 && !(r.matches || []).some(m => m.sparring));
+  const singleNormal = rounds.filter(r => (r.matches || []).length === 1 && !(r.matches || []).some(m => m.sparring));
+  const sparring = rounds.filter(r => (r.matches || []).some(m => m.sparring));
+
+  const ordered = full.concat(singleNormal).concat(sparring);
+
+  const fullPrefix = ordered.filter(r => (r.matches || []).length >= 2);
+  const singleTail = ordered.filter(r => (r.matches || []).length === 1);
+  const limitedTail = singleTail.slice(0, 2);
+  const overflowSingles = singleTail.slice(2);
+
+  const reparsed = fullPrefix.slice();
+  const leftover = overflowSingles.concat(limitedTail);
+  while(leftover.length){
+    const a = leftover.shift();
+    if(leftover.length){
+      const b = leftover.shift();
+      reparsed.push({matches:a.matches.concat(b.matches).slice(0,2)});
+    } else {
+      reparsed.push(a);
+    }
+  }
+
+  const reparsedFull = reparsed.filter(r => (r.matches || []).length >= 2);
+  const reparsedSingle = reparsed.filter(r => (r.matches || []).length === 1);
+  let finalRounds = reparsedFull.concat(reparsedSingle.slice(0,2));
+
+  const remaining = finalRounds.slice();
+  const result = [];
+  const byeCount = Object.fromEntries(names.map(n => [n, 0]));
+
+  while(remaining.length){
+    let bestIdx = 0;
+    let bestScore = -Infinity;
+    for(let i=0;i<remaining.length;i++){
+      const rd = remaining[i];
+      const active = new Set();
+      rd.matches.forEach(mt => mt.teamA.concat(mt.teamB).forEach(p => { if(names.includes(p)) active.add(p); }));
+      const bye = names.filter(n => !active.has(n));
+
+      let penalty = 0;
+      bye.forEach(n => {
+        if(byeCount[n] >= 2) penalty += 10000;
+        penalty += byeCount[n] * 50;
+      });
+
+      const twoCourtBonus = rd.matches.length >= 2 ? 500 : 0;
+      const score = twoCourtBonus - penalty + Math.random() * 0.01;
+      if(score > bestScore){
+        bestScore = score;
+        bestIdx = i;
+      }
+    }
+
+    const picked = remaining.splice(bestIdx, 1)[0];
+    const active = new Set();
+    picked.matches.forEach(mt => mt.teamA.concat(mt.teamB).forEach(p => { if(names.includes(p)) active.add(p); }));
+    picked.bye = names.filter(n => !active.has(n));
+    picked.bye.forEach(n => { byeCount[n] += 1; });
+    result.push(picked);
+  }
+
+  result.forEach((rd, idx) => { rd.round = idx + 1; });
+  return result;
+}
+
 function generateEqualSchedule(names){
-  const rounds = buildRoundsFromTemplate(names);
-  const targetMatches = calcTargetMatches(names.length);
-  const coverage = countPairCoverage(rounds);
-  const sparCount = rounds.reduce((acc, rd) => acc + rd.matches.filter(m => m.sparring).length, 0);
+  const rawRounds = buildRoundsFromTemplate(names);
+  const flatMatches = [];
+  rawRounds.forEach(r => r.matches.forEach(m => flatMatches.push(m)));
+  const grouped = combineIntoRounds(flatMatches);
+  const rounds = reorderRounds(grouped, names);
+  const singleCourtRounds = countSingleCourtRounds(rounds);
   return {
     rounds,
-    matchCount: rounds.reduce((s,rd)=>s+rd.matches.length,0),
-    targetMatches,
-    coverage,
+    matchCount: rounds.reduce((s, rd) => s + rd.matches.length, 0),
+    targetMatches: names.length - 1,
+    coverage: countPairCoverage(rounds),
     totalPairs: totalPartnerPairs(names.length),
-    usedSparring: sparCount > 0,
-    sparCount
+    usedSparring: rounds.some(r => r.matches.some(m => m.sparring)),
+    singleCourtRounds
   };
 }
 
@@ -318,13 +501,14 @@ function renderTags(){
   document.getElementById('coverageTags').innerHTML = `
     <span class="pill">搭档覆盖 ${state.coverage}/${state.totalPairs}</span>
     <span class="pill ${allPartnered ? 'ok' : 'danger'}">${allPartnered ? '每个人都已和其他所有人搭档' : '搭档覆盖未完成'}</span>
-    <span class="pill ${allPlayedEqual() ? 'ok' : 'danger'}">${allPlayedEqual() ? '所有人场次完全相同' : '场次不相同'}</span>
-    <span class="pill">每人 ${state.targetMatches} 场</span>
+    <span class="pill">每轮优先双场地</span>
+    <span class="pill">最后两轮可单场地</span>
     <span class="pill">总场次 ${state.matchCount}</span>
     <span class="pill">总轮次 ${state.rounds.length}</span>
-    <span class="pill ${state.usedSparring ? 'warn' : 'ok'}">${state.usedSparring ? `已启用 ${state.rounds.reduce((a,r)=>a+r.matches.filter(m=>m.sparring).length,0)} 场陪打` : '未启用陪打'}</span>
+    <span class="pill">尽量全员换搭档</span>
+    <span class="pill">每人最多轮空两轮</span>
   `;
-  document.getElementById('metaText').innerHTML = `当前 ${state.players.length} 人参赛。正式参赛成员每人 <strong>${state.targetMatches}</strong> 场，且场次完全相同；系统共排出 <strong>${state.matchCount}</strong> 场、<strong>${state.rounds.length}</strong> 轮。${state.usedSparring ? ` 其中含 ${state.rounds.reduce((a,r)=>a+r.matches.filter(m=>m.sparring).length,0)} 场陪打局，不计入正式球员场次。` : ''}`;
+  document.getElementById('metaText').innerHTML = `当前 ${state.players.length} 人参赛。系统现在把“每一轮优先双场地同时进行”作为最高优先级；最多只允许最后 <strong>两轮</strong> 为单场地比赛，并控制每个人最多轮空 <strong>两轮</strong>。当前共排出 <strong>${state.matchCount}</strong> 场、<strong>${state.rounds.length}</strong> 轮。`;
 }
 function renderSchedule(){
   const wrap = document.getElementById('scheduleWrap');
@@ -336,8 +520,11 @@ function renderSchedule(){
 
     rd.matches.forEach((m, mIndex) => {
       const match = document.createElement('div');
-      match.className = 'match';
+      match.className = m.sparring ? 'match sparring' : 'match';
       match.innerHTML = `
+        <div class="match-badge ${m.sparring ? 'sparring' : 'regular'}">
+          ${m.sparring ? '补位局 / 友谊局' : '正式比赛'}
+        </div>
         <div class="teamrow">
           <div class="team"><div>${m.teamA[0]}</div><div>${m.teamA[1]}</div></div>
           <div class="scorewrap">
@@ -347,7 +534,7 @@ function renderSchedule(){
           </div>
           <div class="team"><div>${m.teamB[0]}</div><div>${m.teamB[1]}</div></div>
         </div>
-        ${m.sparring ? '<div class="small" style="margin-top:6px">本场为陪打补位局</div>' : ''}
+        ${m.sparring ? '<div class="small" style="margin-top:6px;color:#9a3412">本场为陪打补位局，不计入正式球员统计</div>' : '<div class="small" style="margin-top:6px;color:#0369a1">正式比赛，计入球员成绩统计</div>'}
       `;
       box.appendChild(match);
     });
@@ -362,6 +549,7 @@ function renderSchedule(){
       renderStats();
       renderPlayers();
       renderTags();
+      saveScoreState();
     });
   });
 }
@@ -423,7 +611,7 @@ function openPlayerModal(name){
       const opponents = inA ? m.teamB : m.teamA;
       items.push(`
         <div class="match">
-          <div><strong>第 ${rd.round} 轮</strong>${m.sparring ? ' · 陪打局' : ''}</div>
+          <div><strong>第 ${rd.round} 轮</strong>${m.sparring ? ' · 补位局 / 友谊局' : ' · 正式比赛'}</div>
           <div class="small" style="margin-top:6px">本方组合：${myTeam.join(' / ')}</div>
           <div class="small">对手：${opponents.join(' / ')}</div>
           <div class="small">比分：${m.scoreA !== '' && m.scoreB !== '' ? `${m.scoreA}:${m.scoreB}` : '未录入'}</div>
@@ -450,7 +638,7 @@ function copyShare(){
   lines.push(`总场次：${state.matchCount}`);
   lines.push(`总轮次：${state.rounds.length}`);
   lines.push(`搭档覆盖：${state.coverage}/${state.totalPairs}`);
-  if(state.usedSparring) lines.push(`含 ${state.rounds.reduce((a,r)=>a+r.matches.filter(m=>m.sparring).length,0)} 场陪打局`);
+  if(state.usedSparring) lines.push(`含 ${state.rounds.reduce((a,r)=>a+r.matches.filter(m=>m.sparring).length,0)} 场补位局 / 友谊局`);
   lines.push('');
   state.rounds.forEach(rd => {
     lines.push(`第${rd.round}轮`);
@@ -481,15 +669,27 @@ function generate(){
     renderSchedule();
     renderPlayers();
     renderStats();
+    saveScoreState();
   }catch(err){
     alert(err.message || '生成失败，请再试一次');
   }
 }
 document.getElementById('generateBtn').addEventListener('click', generate);
 document.getElementById('copyShareBtn').addEventListener('click', copyShare);
+document.getElementById('refreshBtn').addEventListener('click', () => {
+  const ok = loadScoreState();
+  if(!ok) alert('当前没有可刷新的本地比分记录');
+});
 document.getElementById('playerText').addEventListener('input', savePlayers);
+window.addEventListener('storage', (e) => {
+  if(e.key === SCORE_STATE_STORAGE_KEY){
+    loadScoreState();
+  }
+});
 loadPlayers();
-generate();
+if(!loadScoreState()){
+  generate();
+}
 </script>
 </body>
 </html>
