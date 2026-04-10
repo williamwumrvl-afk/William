@@ -199,37 +199,8 @@ Jenny</textarea>
   </div>
 </dialog>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-// ===== Firebase 初始化 =====
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCJuV_BLejotDh2719Ei8PYSWy3RRumvZ4",
-  authDomain: "badminton-games.firebaseapp.com",
-  projectId: "badminton-games",
-  storageBucket: "badminton-games.firebasestorage.app",
-  messagingSenderId: "749139099911",
-  appId: "1:749139099911:web:04293d88d3d14f35e985a2"
-};
-
-const roomId = new URLSearchParams(location.search).get("room") || "default";
-let firebaseEnabled = false;
-let db = null;
-let docRef = null;
-let suppressRemoteSave = false;
-
-try {
-  if (typeof firebase !== "undefined" && FIREBASE_CONFIG.apiKey !== "REPLACE_ME") {
-    firebase.initializeApp(FIREBASE_CONFIG);
-    db = firebase.firestore();
-    docRef = db.collection("badminton").doc(roomId);
-    firebaseEnabled = true;
-  }
-} catch (e) {
-  console.log("Firebase 未启用，使用本地模式", e);
-}
-
-const PLAYER_STORAGE_KEY = `badminton_players_autosave_v2_${roomId}`;
+const PLAYER_STORAGE_KEY = 'badminton_players_autosave_v2';
 function savePlayers(){
   const el = document.getElementById('playerText');
   if(el) localStorage.setItem(PLAYER_STORAGE_KEY, el.value || '');
@@ -240,7 +211,7 @@ function loadPlayers(){
   if(saved && el) el.value = saved;
 }
 
-const SCORE_STATE_STORAGE_KEY = `badminton_score_state_v1_${roomId}`;
+const SCORE_STATE_STORAGE_KEY = 'badminton_score_state_v1';
 
 function buildStatePayload(){
   return {
@@ -251,23 +222,20 @@ function buildStatePayload(){
     coverage: state.coverage,
     totalPairs: state.totalPairs,
     usedSparring: state.usedSparring,
-    matchTitle: document.getElementById('matchTitle')?.value || '',
-    courtText: document.getElementById('courtText')?.value || '',
     savedAt: Date.now()
   };
 }
-async function saveScoreState(){
+function saveScoreState(){
   try{
     if(!state.rounds || !state.rounds.length) return;
-    const payload = buildStatePayload();
-    localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(payload));
-    if(firebaseEnabled && docRef && !suppressRemoteSave){
-      await docRef.set(payload, { merge: true });
-    }
+    localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(buildStatePayload()));
   }catch(err){}
 }
-function applyLoadedState(data){
+function loadScoreState(){
   try{
+    const raw = localStorage.getItem(SCORE_STATE_STORAGE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
     if(!data || !Array.isArray(data.rounds) || !Array.isArray(data.players)) return false;
     state.players = data.players || [];
     state.rounds = data.rounds || [];
@@ -276,51 +244,16 @@ function applyLoadedState(data){
     state.coverage = data.coverage || 0;
     state.totalPairs = data.totalPairs || 0;
     state.usedSparring = !!data.usedSparring;
-
-    const matchTitleEl = document.getElementById('matchTitle');
-    const courtTextEl = document.getElementById('courtText');
-    const playerTextEl = document.getElementById('playerText');
-
-    if(matchTitleEl) matchTitleEl.value = data.matchTitle || '';
-    if(courtTextEl) courtTextEl.value = data.courtText || '';
-    if(playerTextEl) playerTextEl.value = (data.players || []).join('
-');
-
     state.standings = getStandings();
     renderTags();
     renderSchedule();
     renderPlayers();
     renderStats();
+    saveScoreState();
     return true;
   }catch(err){
     return false;
   }
-}
-
-function loadLocalScoreState(){
-  try{
-    const raw = localStorage.getItem(SCORE_STATE_STORAGE_KEY);
-    if(!raw) return false;
-    const data = JSON.parse(raw);
-    return applyLoadedState(data);
-  }catch(err){
-    return false;
-  }
-}
-
-function listenScoreState(){
-  if(!(firebaseEnabled && docRef)) return false;
-  docRef.onSnapshot((doc) => {
-    const data = doc.data();
-    if(!data) return;
-    suppressRemoteSave = true;
-    applyLoadedState(data);
-    localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
-    suppressRemoteSave = false;
-  }, (err) => {
-    console.log('云端同步失败，继续使用本地模式', err);
-  });
-  return true;
 }
 
 const state = {
@@ -769,27 +702,18 @@ function generate(){
 document.getElementById('generateBtn').addEventListener('click', generate);
 document.getElementById('copyShareBtn').addEventListener('click', copyShare);
 document.getElementById('refreshBtn').addEventListener('click', () => {
-  const ok = loadLocalScoreState();
-  if(!ok) alert(firebaseEnabled ? '当前没有可刷新的本地缓存，云端会自动同步最新数据' : '当前没有可刷新的本地比分记录');
+  const ok = loadScoreState();
+  if(!ok) alert('当前没有可刷新的本地比分记录');
 });
 document.getElementById('playerText').addEventListener('input', savePlayers);
 window.addEventListener('storage', (e) => {
   if(e.key === SCORE_STATE_STORAGE_KEY){
-    loadLocalScoreState();
+    loadScoreState();
   }
 });
-
-const localLoaded = loadLocalScoreState();
-listenScoreState();
-
-if(!localLoaded){
-  loadPlayers();
-}
-
-if(!localLoaded){
-  setTimeout(() => {
-    if(!state.rounds.length) generate();
-  }, firebaseEnabled ? 2000 : 0);
+loadPlayers();
+if(!loadScoreState()){
+  generate();
 }
 </script>
 </body>
