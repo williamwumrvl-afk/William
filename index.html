@@ -15,6 +15,13 @@
     .hero{background:linear-gradient(135deg,#0ea5e9,#22c55e);color:#fff;border-radius:24px;padding:20px 18px;box-shadow:0 12px 30px rgba(14,165,233,.20)}
     .hero h1{margin:0 0 6px;font-size:28px}
     .hero p{margin:0;opacity:.92;line-height:1.6}
+    .sync-banner{margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.26);border-radius:16px;padding:10px 12px}
+    .sync-banner .left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .sync-dot{width:10px;height:10px;border-radius:999px;background:#bbf7d0;box-shadow:0 0 0 4px rgba(187,247,208,.15)}
+    .sync-dot.offline{background:#fecaca;box-shadow:0 0 0 4px rgba(254,202,202,.14)}
+    .sync-dot.syncing{background:#fde68a;box-shadow:0 0 0 4px rgba(253,230,138,.14)}
+    .sync-text{font-size:13px;line-height:1.5}
+    .sync-meta{font-size:12px;opacity:.9}
     .grid{display:grid;gap:14px;margin-top:14px}
     .two{grid-template-columns:1.1fr .9fr}
     @media (max-width:780px){.two{grid-template-columns:1fr}}
@@ -36,24 +43,10 @@
     .schedule-round{border:1px solid var(--line);border-radius:14px;padding:10px 10px 8px;margin-top:8px}
     .schedule-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px;padding-bottom:4px;border-bottom:1px dashed #d9e8f5}
     .match{border-radius:12px;background:linear-gradient(180deg,#f8fbff,#ffffff);padding:6px 8px;margin-top:6px;border:1px solid rgba(14,165,233,.08)}
-    .match.sparring{
-      background:linear-gradient(180deg,#fff7ed,#fffbeb);
-      border:1px solid #fdba74;
-      box-shadow:0 6px 18px rgba(249,115,22,.10);
-    }
-    .match-badge{
-      display:inline-flex;align-items:center;gap:5px;
-      font-size:11px;font-weight:800;
-      padding:3px 8px;border-radius:999px;
-      margin-bottom:5px;
-      letter-spacing:.02em;
-    }
-    .match-badge.regular{
-      background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;
-    }
-    .match-badge.sparring{
-      background:#ffedd5;color:#9a3412;border:1px solid #fdba74;
-    }
+    .match.sparring{background:linear-gradient(180deg,#fff7ed,#fffbeb);border:1px solid #fdba74;box-shadow:0 6px 18px rgba(249,115,22,.10)}
+    .match-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;margin-bottom:5px;letter-spacing:.02em}
+    .match-badge.regular{background:#e0f2fe;color:#075985;border:1px solid #7dd3fc}
+    .match-badge.sparring{background:#ffedd5;color:#9a3412;border:1px solid #fdba74}
     .teamrow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center}
     .team{background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 8px;box-shadow:0 2px 8px rgba(14,165,233,.06);font-size:14px;line-height:1.18;font-weight:800;letter-spacing:.01em}
     .match.sparring .team{background:rgba(255,255,255,.72);border-color:#fed7aa}
@@ -120,6 +113,13 @@
   <div class="hero">
     <h1>羽毛球双打工具</h1>
     <p>目标：每一轮优先安排两场比赛同时进行；最多只允许最后两轮只使用一个场地；其他条件可为满足双场地优先而适当放宽。</p>
+    <div class="sync-banner">
+      <div class="left">
+        <span id="syncDot" class="sync-dot"></span>
+        <div class="sync-text" id="syncText">正在准备同步…</div>
+      </div>
+      <div class="sync-meta" id="syncMeta">房间加载中</div>
+    </div>
   </div>
 
   <div class="grid two">
@@ -166,7 +166,7 @@ Jenny</textarea>
       <div class="row schedule-toolbar" style="justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div class="title" style="margin:0">对阵表</div>
-          <div class="sub" style="margin:0">只显示第几轮；比分可直接录入。正式比赛与补位局 / 友谊局已做颜色区分。</div>
+          <div class="sub" style="margin:0">不同手机打开同一比赛链接后，会优先拉取后台数据；任意人更新比分，其他人会自动同步。</div>
         </div>
         <div style="flex:0 0 auto">
           <button class="secondary" id="refreshBtn" title="同步后台已保存数据" style="padding:8px 12px;white-space:nowrap">刷新比分</button>
@@ -196,11 +196,9 @@ Jenny</textarea>
   </div>
 </dialog>
 
-
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-// ===== Firebase 初始化 =====
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCJuV_BLejotDh2719Ei8PYSWy3RRumvZ4",
   authDomain: "badminton-games.firebaseapp.com",
@@ -217,10 +215,11 @@ let docRef = null;
 let suppressRemoteSave = false;
 let applyingRemoteState = false;
 let unsubscribeRoom = null;
+let hasEverLoadedRemote = false;
 
 try {
   if (typeof firebase !== "undefined" && FIREBASE_CONFIG.apiKey !== "REPLACE_ME") {
-    firebase.initializeApp(FIREBASE_CONFIG);
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.firestore();
     docRef = db.collection("badminton").doc(roomId);
     firebaseEnabled = true;
@@ -238,6 +237,28 @@ if(!CLIENT_ID){
   localStorage.setItem(CLIENT_ID_STORAGE_KEY, CLIENT_ID);
 }
 let lastLocalSavedAt = 0;
+let lastRemoteSavedAt = 0;
+let lastSyncMessage = '';
+
+function formatSyncTime(ts){
+  if(!ts) return '暂无同步时间';
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function setSyncStatus(mode, text, meta){
+  const dot = document.getElementById('syncDot');
+  const textEl = document.getElementById('syncText');
+  const metaEl = document.getElementById('syncMeta');
+  if(!dot || !textEl || !metaEl) return;
+  dot.className = 'sync-dot';
+  if(mode === 'offline') dot.classList.add('offline');
+  if(mode === 'syncing') dot.classList.add('syncing');
+  textEl.textContent = text || lastSyncMessage || '等待同步';
+  metaEl.textContent = meta || `房间号：${roomId}`;
+  if(text) lastSyncMessage = text;
+}
 
 function savePlayers(){
   const el = document.getElementById('playerText');
@@ -268,13 +289,13 @@ function applyDraftFields(data){
 const playerDraftTimers = {};
 function schedulePlayerDraftSync(){
   savePlayers();
-
   const key = 'draft';
   if(playerDraftTimers[key]) clearTimeout(playerDraftTimers[key]);
 
   playerDraftTimers[key] = setTimeout(async () => {
     if(!(firebaseEnabled && docRef) || suppressRemoteSave) return;
     try{
+      setSyncStatus('syncing', '正在同步人员和基本信息…', `房间号：${roomId}`);
       const payload = {
         matchTitle: document.getElementById('matchTitle')?.value || '',
         courtText: document.getElementById('courtText')?.value || '',
@@ -284,12 +305,14 @@ function schedulePlayerDraftSync(){
       };
       lastLocalSavedAt = payload.savedAt;
       await docRef.set(payload, { merge: true });
+      setSyncStatus('online', '人员录入已同步到后台', `最后写入：${formatSyncTime(payload.savedAt)}`);
     }catch(err){
       console.error('同步球员名单失败', err);
+      setSyncStatus('offline', '人员录入同步失败，仍可继续编辑', `房间号：${roomId}`);
     }finally{
       delete playerDraftTimers[key];
     }
-  }, 350);
+  }, 250);
 }
 
 function buildStatePayload(){
@@ -309,27 +332,31 @@ function buildStatePayload(){
   };
 }
 
-async function saveScoreState(){
+async function saveScoreState(reason){
   try{
     if(!state.rounds || !state.rounds.length) return false;
     const payload = buildStatePayload();
     lastLocalSavedAt = payload.savedAt;
     localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(payload));
     if(firebaseEnabled && docRef && !suppressRemoteSave){
+      setSyncStatus('syncing', reason || '正在同步比分…', `房间号：${roomId}`);
       await docRef.set(payload, { merge: true });
+      setSyncStatus('online', '比分已实时同步', `最后写入：${formatSyncTime(payload.savedAt)}`);
+    }else{
+      setSyncStatus('offline', '当前为本地模式，比分已保存到本机', `最后本地保存：${formatSyncTime(payload.savedAt)}`);
     }
     return true;
   }catch(err){
     console.error('保存失败', err);
+    setSyncStatus('offline', '比分同步失败，已保留当前页面内容', `房间号：${roomId}`);
     return false;
   }
 }
 
-function applyLoadedState(data){
+function applyLoadedState(data, source){
   try{
     if(!data) return false;
     applyingRemoteState = true;
-
     applyDraftFields(data);
 
     if(Array.isArray(data.rounds) && Array.isArray(data.players)){
@@ -340,7 +367,6 @@ function applyLoadedState(data){
       state.coverage = data.coverage || 0;
       state.totalPairs = data.totalPairs || 0;
       state.usedSparring = !!data.usedSparring;
-
       state.standings = getStandings();
       renderTags();
       renderSchedule();
@@ -348,11 +374,21 @@ function applyLoadedState(data){
       renderStats();
     }
 
+    const savedAt = data.savedAt || Date.now();
+    if(source === 'remote'){
+      lastRemoteSavedAt = savedAt;
+      hasEverLoadedRemote = true;
+      setSyncStatus('online', '已拉取后台最新数据', `后台时间：${formatSyncTime(savedAt)}`);
+    } else {
+      setSyncStatus(firebaseEnabled ? 'online' : 'offline', source === 'local' ? '已读取本地已保存数据' : '数据已更新', `${source === 'local' ? '本地' : '更新时间'}：${formatSyncTime(savedAt)}`);
+    }
+
     applyingRemoteState = false;
     return true;
   }catch(err){
     applyingRemoteState = false;
     console.error('应用状态失败', err);
+    setSyncStatus('offline', '读取同步数据失败', `房间号：${roomId}`);
     return false;
   }
 }
@@ -362,22 +398,30 @@ function loadLocalScoreState(){
     const raw = localStorage.getItem(SCORE_STATE_STORAGE_KEY);
     if(!raw) return false;
     const data = JSON.parse(raw);
-    return applyLoadedState(data);
+    return applyLoadedState(data, 'local');
   }catch(err){
     return false;
   }
 }
 
-async function fetchRemoteStateOnce(){
+async function fetchRemoteStateOnce(silent){
   if(!(firebaseEnabled && docRef)) return false;
   try{
+    if(!silent) setSyncStatus('syncing', '正在从后台拉取最新数据…', `房间号：${roomId}`);
     const snap = await docRef.get();
     if(!snap.exists) return false;
     const data = snap.data();
     if(!data) return false;
-    if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt) return true;
+    if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt){
+      if(!silent) setSyncStatus('online', '当前已是最新数据', `最后写入：${formatSyncTime(data.savedAt)}`);
+      return true;
+    }
+    if(lastRemoteSavedAt && data.savedAt && data.savedAt <= lastRemoteSavedAt && hasEverLoadedRemote){
+      if(!silent) setSyncStatus('online', '当前已是后台最新数据', `后台时间：${formatSyncTime(data.savedAt)}`);
+      return true;
+    }
     suppressRemoteSave = true;
-    const ok = applyLoadedState(data);
+    const ok = applyLoadedState(data, 'remote');
     if(ok){
       localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
     }
@@ -386,6 +430,7 @@ async function fetchRemoteStateOnce(){
   }catch(err){
     suppressRemoteSave = false;
     console.error('拉取云端数据失败', err);
+    if(!silent) setSyncStatus('offline', '后台拉取失败，继续使用当前数据', `房间号：${roomId}`);
     return false;
   }
 }
@@ -397,15 +442,18 @@ function listenScoreState(){
     const data = doc.data();
     if(!data) return;
     if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt) return;
+    if(lastRemoteSavedAt && data.savedAt && data.savedAt <= lastRemoteSavedAt) return;
     suppressRemoteSave = true;
-    const ok = applyLoadedState(data);
+    const ok = applyLoadedState(data, 'remote');
     if(ok){
       localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
+      setSyncStatus('online', '检测到其他人更新，已自动同步', `后台时间：${formatSyncTime(data.savedAt)}`);
     }
     suppressRemoteSave = false;
   }, (err) => {
     suppressRemoteSave = false;
     console.log('云端同步失败，继续使用本地模式', err);
+    setSyncStatus('offline', '实时监听失败，已切换为当前页面数据', `房间号：${roomId}`);
   });
   return true;
 }
@@ -427,13 +475,13 @@ function scheduleDelayedSave(r, m){
   if(scoreSaveTimers[key]) clearTimeout(scoreSaveTimers[key]);
   scoreSaveTimers[key] = setTimeout(async () => {
     try{
-      await saveScoreState();
+      await saveScoreState('正在同步比分…');
     }catch(err){
       console.error('延迟同步失败', err);
     }finally{
       delete scoreSaveTimers[key];
     }
-  }, 350);
+  }, 180);
 }
 
 function flushDelayedSave(r, m){
@@ -442,17 +490,19 @@ function flushDelayedSave(r, m){
     clearTimeout(scoreSaveTimers[key]);
     delete scoreSaveTimers[key];
   }
-  return saveScoreState();
+  return saveScoreState('正在立即提交比分…');
 }
 
-function shuffle(arr){
-  const a = arr.slice();
-  for(let i=a.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [a[i],a[j]]=[a[j],a[i]];
-  }
-  return a;
+async function flushAllPendingSaves(){
+  const keys = Object.keys(scoreSaveTimers);
+  if(!keys.length) return;
+  keys.forEach(key => {
+    clearTimeout(scoreSaveTimers[key]);
+    delete scoreSaveTimers[key];
+  });
+  await saveScoreState('正在提交最后修改…');
 }
+
 function pairKey(a,b){ return a < b ? a + '|' + b : b + '|' + a; }
 function uniqNames(text){
   const raw = text.split(/\n+/).map(s=>s.trim()).filter(Boolean).slice(0,12);
@@ -472,21 +522,11 @@ function buildRoundsFromTemplate(names){
       const kind = m[0];
       const teamA = m[1].map(i => names[i]);
       const teamB = kind === 'reg' ? m[2].map(i => names[i]) : ['陪打A','陪打B'];
-      return {
-        teamA,
-        teamB,
-        sparring: kind === 'spar',
-        scoreA: '',
-        scoreB: ''
-      };
+      return { teamA, teamB, sparring: kind === 'spar', scoreA: '', scoreB: '' };
     });
     const active = new Set();
     matches.forEach(mt => mt.teamA.concat(mt.teamB).forEach(p => { if(names.includes(p)) active.add(p); }));
-    return {
-      round: idx + 1,
-      bye: names.filter(n => !active.has(n)),
-      matches
-    };
+    return { round: idx + 1, bye: names.filter(n => !active.has(n)), matches };
   });
 }
 
@@ -498,51 +538,29 @@ function countPairCoverage(rounds){
   }));
   return set.size;
 }
-
-function countSingleCourtRounds(rounds){
-  return rounds.filter(r => (r.matches || []).length === 1).length;
-}
-
+function countSingleCourtRounds(rounds){ return rounds.filter(r => (r.matches || []).length === 1).length; }
 function matchUsesFormalPlayers(match){
   const s = new Set();
-  match.teamA.concat(match.teamB).forEach(p => {
-    if(!String(p).startsWith('陪打')) s.add(p);
-  });
+  match.teamA.concat(match.teamB).forEach(p => { if(!String(p).startsWith('陪打')) s.add(p); });
   return s;
 }
-
 function combineIntoRounds(matches){
   const remaining = matches.slice();
   const rounds = [];
   while(remaining.length){
     const first = remaining.shift();
-    if(remaining.length === 0){
-      rounds.push({matches:[first]});
-      break;
-    }
+    if(remaining.length === 0){ rounds.push({matches:[first]}); break; }
     const used = matchUsesFormalPlayers(first);
-    let bestIdx = -1;
-    let bestScore = -1e9;
-
+    let bestIdx = -1; let bestScore = -1e9;
     for(let i=0;i<remaining.length;i++){
       const cand = remaining[i];
       const used2 = matchUsesFormalPlayers(cand);
-      let overlap = 0;
-      used2.forEach(p => { if(used.has(p)) overlap++; });
-
-      if(!first.sparring && !cand.sparring && overlap > 0){
-        continue;
-      }
-
+      let overlap = 0; used2.forEach(p => { if(used.has(p)) overlap++; });
+      if(!first.sparring && !cand.sparring && overlap > 0) continue;
       let score = overlap === 0 ? 1000 : -1000 * overlap;
       if(!!first.sparring === !!cand.sparring) score += 10;
-
-      if(score > bestScore){
-        bestScore = score;
-        bestIdx = i;
-      }
+      if(score > bestScore){ bestScore = score; bestIdx = i; }
     }
-
     if(bestIdx >= 0 && bestScore > 0){
       const second = remaining.splice(bestIdx, 1)[0];
       rounds.push({matches:[first, second]});
@@ -552,62 +570,41 @@ function combineIntoRounds(matches){
   }
   return rounds;
 }
-
 function reorderRounds(rounds, names){
   const full = rounds.filter(r => (r.matches || []).length >= 2 && !(r.matches || []).some(m => m.sparring));
   const singleNormal = rounds.filter(r => (r.matches || []).length === 1 && !(r.matches || []).some(m => m.sparring));
   const sparring = rounds.filter(r => (r.matches || []).some(m => m.sparring));
-
   const ordered = full.concat(singleNormal).concat(sparring);
-
   const fullPrefix = ordered.filter(r => (r.matches || []).length >= 2);
   const singleTail = ordered.filter(r => (r.matches || []).length === 1);
   const limitedTail = singleTail.slice(0, 2);
   const overflowSingles = singleTail.slice(2);
-
   const reparsed = fullPrefix.slice();
   const leftover = overflowSingles.concat(limitedTail);
   while(leftover.length){
     const a = leftover.shift();
-    if(leftover.length){
-      const b = leftover.shift();
-      reparsed.push({matches:a.matches.concat(b.matches).slice(0,2)});
-    } else {
-      reparsed.push(a);
-    }
+    if(leftover.length){ const b = leftover.shift(); reparsed.push({matches:a.matches.concat(b.matches).slice(0,2)}); }
+    else { reparsed.push(a); }
   }
-
   const reparsedFull = reparsed.filter(r => (r.matches || []).length >= 2);
   const reparsedSingle = reparsed.filter(r => (r.matches || []).length === 1);
   let finalRounds = reparsedFull.concat(reparsedSingle.slice(0,2));
-
   const remaining = finalRounds.slice();
   const result = [];
   const byeCount = Object.fromEntries(names.map(n => [n, 0]));
-
   while(remaining.length){
-    let bestIdx = 0;
-    let bestScore = -Infinity;
+    let bestIdx = 0; let bestScore = -Infinity;
     for(let i=0;i<remaining.length;i++){
       const rd = remaining[i];
       const active = new Set();
       rd.matches.forEach(mt => mt.teamA.concat(mt.teamB).forEach(p => { if(names.includes(p)) active.add(p); }));
       const bye = names.filter(n => !active.has(n));
-
       let penalty = 0;
-      bye.forEach(n => {
-        if(byeCount[n] >= 2) penalty += 10000;
-        penalty += byeCount[n] * 50;
-      });
-
+      bye.forEach(n => { if(byeCount[n] >= 2) penalty += 10000; penalty += byeCount[n] * 50; });
       const twoCourtBonus = rd.matches.length >= 2 ? 500 : 0;
       const score = twoCourtBonus - penalty + Math.random() * 0.01;
-      if(score > bestScore){
-        bestScore = score;
-        bestIdx = i;
-      }
+      if(score > bestScore){ bestScore = score; bestIdx = i; }
     }
-
     const picked = remaining.splice(bestIdx, 1)[0];
     const active = new Set();
     picked.matches.forEach(mt => mt.teamA.concat(mt.teamB).forEach(p => { if(names.includes(p)) active.add(p); }));
@@ -615,18 +612,15 @@ function reorderRounds(rounds, names){
     picked.bye.forEach(n => { byeCount[n] += 1; });
     result.push(picked);
   }
-
   result.forEach((rd, idx) => { rd.round = idx + 1; });
   return result;
 }
-
 function generateEqualSchedule(names){
   const rawRounds = buildRoundsFromTemplate(names);
   const flatMatches = [];
   rawRounds.forEach(r => r.matches.forEach(m => flatMatches.push(m)));
   const grouped = combineIntoRounds(flatMatches);
   const rounds = reorderRounds(grouped, names);
-  const singleCourtRounds = countSingleCourtRounds(rounds);
   return {
     rounds,
     matchCount: rounds.reduce((s, rd) => s + rd.matches.length, 0),
@@ -634,19 +628,15 @@ function generateEqualSchedule(names){
     coverage: countPairCoverage(rounds),
     totalPairs: totalPartnerPairs(names.length),
     usedSparring: rounds.some(r => r.matches.some(m => m.sparring)),
-    singleCourtRounds
+    singleCourtRounds: countSingleCourtRounds(rounds)
   };
 }
 
 function getStandings(){
   const map = {};
   for(const name of state.players){
-    map[name] = {
-      name, played: 0, win: 0, loss: 0, diff: 0,
-      partners: new Set(), opponents: new Set(),
-    };
+    map[name] = { name, played: 0, win: 0, loss: 0, diff: 0, partners: new Set(), opponents: new Set() };
   }
-
   state.rounds.forEach(rd => {
     rd.matches.forEach(m => {
       const all = m.teamA.concat(m.teamB).filter(p => map[p]);
@@ -654,33 +644,17 @@ function getStandings(){
       if(map[m.teamA[0]] && map[m.teamA[1]]){ map[m.teamA[0]].partners.add(m.teamA[1]); map[m.teamA[1]].partners.add(m.teamA[0]); }
       if(map[m.teamB[0]] && map[m.teamB[1]]){ map[m.teamB[0]].partners.add(m.teamB[1]); map[m.teamB[1]].partners.add(m.teamB[0]); }
       m.teamA.forEach(a => m.teamB.forEach(b => { if(map[a] && map[b]){ map[a].opponents.add(b); map[b].opponents.add(a); } }));
-
       const a = Number(m.scoreA), b = Number(m.scoreB);
       const scored = m.scoreA !== '' && m.scoreB !== '' && !Number.isNaN(a) && !Number.isNaN(b);
       if(!scored) return;
-
-      m.teamA.forEach(p => {
-        if(!map[p]) return;
-        map[p].diff += a - b;
-        if(a > b) map[p].win++; else if(a < b) map[p].loss++;
-      });
-      m.teamB.forEach(p => {
-        if(!map[p]) return;
-        map[p].diff += b - a;
-        if(b > a) map[p].win++; else if(b < a) map[p].loss++;
-      });
+      m.teamA.forEach(p => { if(!map[p]) return; map[p].diff += a - b; if(a > b) map[p].win++; else if(a < b) map[p].loss++; });
+      m.teamB.forEach(p => { if(!map[p]) return; map[p].diff += b - a; if(b > a) map[p].win++; else if(b < a) map[p].loss++; });
     });
   });
+  return Object.values(map).map(x => ({ ...x, partnerCount: x.partners.size, opponentCount: x.opponents.size }))
+    .sort((a,b) => b.win - a.win || b.diff - a.diff || b.partnerCount - a.partnerCount || a.name.localeCompare(b.name, 'zh-CN'));
+}
 
-  return Object.values(map).map(x => ({
-    ...x,
-    partnerCount: x.partners.size,
-    opponentCount: x.opponents.size
-  })).sort((a,b) => b.win - a.win || b.diff - a.diff || b.partnerCount - a.partnerCount || a.name.localeCompare(b.name, 'zh-CN'));
-}
-function allPlayedEqual(){
-  return state.standings.length ? state.standings.every(x => x.played === state.standings[0].played) : true;
-}
 function renderTags(){
   const allPartnered = state.standings.length ? state.standings.every(x => x.partnerCount === state.players.length - 1) : false;
   document.getElementById('coverageTags').innerHTML = `
@@ -696,6 +670,7 @@ function renderTags(){
   `;
   document.getElementById('metaText').innerHTML = `当前 ${state.players.length} 人参赛。系统现在把“每一轮优先双场地同时进行”作为最高优先级；同一轮两场正式比赛不允许出现同一个人；最多只允许最后 <strong>两轮</strong> 为单场地比赛，并控制每个人最多轮空 <strong>两轮</strong>。当前共排出 <strong>${state.matchCount}</strong> 场、<strong>${state.rounds.length}</strong> 轮。`;
 }
+
 function renderSchedule(){
   const wrap = document.getElementById('scheduleWrap');
   wrap.innerHTML = '';
@@ -703,24 +678,20 @@ function renderSchedule(){
     const box = document.createElement('div');
     box.className = 'schedule-round';
     box.innerHTML = `<div class="schedule-head"><strong>第 ${rd.round} 轮</strong><span class="small">${rd.bye.length ? '轮空：' + rd.bye.join('、') : '无人轮空'}</span></div>`;
-
     rd.matches.forEach((m, mIndex) => {
       const match = document.createElement('div');
       match.className = m.sparring ? 'match sparring' : 'match';
       match.innerHTML = `
-        <div class="match-badge ${m.sparring ? 'sparring' : 'regular'}">
-          ${m.sparring ? '补位局 / 友谊局' : '正式比赛'}
-        </div>
+        <div class="match-badge ${m.sparring ? 'sparring' : 'regular'}">${m.sparring ? '补位局 / 友谊局' : '正式比赛'}</div>
         <div class="teamrow">
           <div class="team"><div>${m.teamA[0]}</div><div>${m.teamA[1]}</div></div>
           <div class="scorewrap">
-            <input data-r="${rIndex}" data-m="${mIndex}" data-f="scoreA" value="${m.scoreA}" />
+            <input inputmode="numeric" data-r="${rIndex}" data-m="${mIndex}" data-f="scoreA" value="${m.scoreA}" />
             <span>-</span>
-            <input data-r="${rIndex}" data-m="${mIndex}" data-f="scoreB" value="${m.scoreB}" />
+            <input inputmode="numeric" data-r="${rIndex}" data-m="${mIndex}" data-f="scoreB" value="${m.scoreB}" />
           </div>
           <div class="team"><div>${m.teamB[0]}</div><div>${m.teamB[1]}</div></div>
-        </div>
-      `;
+        </div>`;
       box.appendChild(match);
     });
     wrap.appendChild(box);
@@ -736,13 +707,17 @@ function renderSchedule(){
       renderTags();
       scheduleDelayedSave(r, m);
     });
-
+    inp.addEventListener('change', e => {
+      const r = Number(e.target.dataset.r), m = Number(e.target.dataset.m);
+      flushDelayedSave(r, m);
+    });
     inp.addEventListener('blur', e => {
       const r = Number(e.target.dataset.r), m = Number(e.target.dataset.m);
       flushDelayedSave(r, m);
     });
   });
 }
+
 function renderPlayers(){
   const grid = document.getElementById('playerGrid');
   grid.innerHTML = '';
@@ -754,15 +729,13 @@ function renderPlayers(){
     grid.appendChild(el);
   });
 }
+
 function medalSVG(idx){
-  if(idx === 0){
-    return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.35 4.76 5.25.76-3.8 3.7.9 5.23L12 14l-4.7 2.47.9-5.23-3.8-3.7 5.25-.76L12 2z"/></svg>`;
-  }
-  if(idx === 1){
-    return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l6 3v5c0 4.1-2.55 7.78-6 9-3.45-1.22-6-4.9-6-9V6l6-3zm0 4.2l-2.05 4.15L5.4 12l3.28 3.2-.78 4.52L12 17.54l4.1 2.18-.78-4.52L18.6 12l-4.55-.65L12 7.2z"/></svg>`;
-  }
+  if(idx === 0) return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.35 4.76 5.25.76-3.8 3.7.9 5.23L12 14l-4.7 2.47.9-5.23-3.8-3.7 5.25-.76L12 2z"/></svg>`;
+  if(idx === 1) return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l6 3v5c0 4.1-2.55 7.78-6 9-3.45-1.22-6-4.9-6-9V6l6-3zm0 4.2l-2.05 4.15L5.4 12l3.28 3.2-.78 4.52L12 17.54l4.1 2.18-.78-4.52L18.6 12l-4.55-.65L12 7.2z"/></svg>`;
   return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10v3h2a1 1 0 0 1 1 1c0 3.2-1.9 5.74-4.72 6.57A5.98 5.98 0 0 1 13 15.92V18h3v2H8v-2h3v-2.08a5.98 5.98 0 0 1-2.28-3.35C5.9 11.74 4 9.2 4 6a1 1 0 0 1 1-1h2V2zm10 5V5h-1v4.54A4.98 4.98 0 0 0 17 7zM7 9.54V5H6v2c0 2.01.84 3.6 1 2.54z"/></svg>`;
 }
+
 function renderStats(){
   const wrap = document.getElementById('statsWrap');
   const medalClass = idx => idx === 0 ? 'medal-gold' : idx === 1 ? 'medal-silver' : idx === 2 ? 'medal-bronze' : 'rank-plain';
@@ -776,18 +749,13 @@ function renderStats(){
       <div><span class="stat-pill stat-diff">${p.diff > 0 ? '+' + p.diff : p.diff}</span></div>
     </div>`).join('');
   wrap.innerHTML = `
-    <div class="stats-hero">
-      <h3>个人成绩统计</h3>
-      <p>陪打人员不计入这里的统计。</p>
-    </div>
+    <div class="stats-hero"><h3>个人成绩统计</h3><p>陪打人员不计入这里的统计。</p></div>
     <div class="stats-card">
-      <div class="stats-headbar">
-        <div>名次</div><div>参赛人员</div><div>本场</div><div>胜</div><div>负</div><div>净胜分</div>
-      </div>
+      <div class="stats-headbar"><div>名次</div><div>参赛人员</div><div>本场</div><div>胜</div><div>负</div><div>净胜分</div></div>
       ${rows}
-    </div>
-  `;
+    </div>`;
 }
+
 function openPlayerModal(name){
   const p = state.standings.find(x => x.name === name);
   if(!p) return;
@@ -815,8 +783,7 @@ function openPlayerModal(name){
       <div class="mini"><div class="small">胜 / 负</div><div><strong>${p.win} / ${p.loss}</strong></div></div>
       <div class="mini"><div class="small">净胜分</div><div><strong>${p.diff}</strong></div></div>
     </div>
-    ${items.join('') || '<div class="sub">暂无数据</div>'}
-  `;
+    ${items.join('') || '<div class="sub">暂无数据</div>'}`;
   document.getElementById('playerDialog').showModal();
 }
 
@@ -826,50 +793,29 @@ function buildRoomUrl(currentRoomId){
   return url.toString();
 }
 async function copyCurrentRoomLink(){
-  try{
-    const url = buildRoomUrl(roomId);
-    await navigator.clipboard.writeText(url);
-    alert('比赛链接已复制');
-  }catch(err){
-    alert('复制失败');
-  }
+  try{ await navigator.clipboard.writeText(buildRoomUrl(roomId)); alert('比赛链接已复制'); }
+  catch(err){ alert('复制失败'); }
 }
 
 function copyShare(){
-  if(!state.rounds.length){ 
-    alert('请先生成比赛'); 
-    return; 
-  }
-
-  const lines = [
-    `【${document.getElementById('matchTitle').value || '羽毛球双打赛'}】`
-  ];
-
+  if(!state.rounds.length){ alert('请先生成比赛'); return; }
+  const lines = [`【${document.getElementById('matchTitle').value || '羽毛球双打赛'}】`];
   lines.push(`人数：${state.players.length}人`);
   lines.push(`总轮次：${state.rounds.length}`);
   lines.push('');
-
   state.rounds.forEach(rd => {
     lines.push(`第${rd.round}轮`);
-    rd.matches.forEach(m => {
-      lines.push(`${m.teamA[0]}/${m.teamA[1]} VS ${m.teamB[0]}/${m.teamB[1]}`);
-    });
+    rd.matches.forEach(m => { lines.push(`${m.teamA[0]}/${m.teamA[1]} VS ${m.teamB[0]}/${m.teamB[1]}`); });
     if(rd.bye.length) lines.push(`轮空：${rd.bye.join('、')}`);
     lines.push('');
   });
-
-  navigator.clipboard.writeText(lines.join('\n'))
-    .then(() => alert('已复制群文案'))
-    .catch(() => alert('复制失败'));
+  navigator.clipboard.writeText(lines.join('\n')).then(() => alert('已复制群文案')).catch(() => alert('复制失败'));
 }
 
 async function generate(){
   savePlayers();
   const names = uniqNames(document.getElementById('playerText').value);
-  if(names.length < 8 || names.length > 12){
-    alert('请输入 8-12 位不重复的参赛人员');
-    return;
-  }
+  if(names.length < 8 || names.length > 12){ alert('请输入 8-12 位不重复的参赛人员'); return; }
   try{
     const result = generateEqualSchedule(names);
     state.players = names.slice();
@@ -880,14 +826,9 @@ async function generate(){
     state.usedSparring = result.usedSparring;
     state.targetMatches = result.targetMatches;
     state.standings = getStandings();
-    renderTags();
-    renderSchedule();
-    renderPlayers();
-    renderStats();
-    await saveScoreState();
-  }catch(err){
-    alert(err.message || '生成失败，请再试一次');
-  }
+    renderTags(); renderSchedule(); renderPlayers(); renderStats();
+    await saveScoreState('正在同步最新赛程和比分…');
+  }catch(err){ alert(err.message || '生成失败，请再试一次'); }
 }
 
 document.getElementById('generateBtn').addEventListener('click', () => { generate(); });
@@ -895,10 +836,9 @@ document.getElementById('copyShareBtn').addEventListener('click', copyShare);
 document.getElementById('copyRoomBtn').addEventListener('click', copyCurrentRoomLink);
 document.getElementById('refreshBtn').addEventListener('click', async () => {
   if(firebaseEnabled){
-    const ok = await fetchRemoteStateOnce();
-    if(ok){
-      alert('已同步后台已保存的最新数据');
-    }else{
+    const ok = await fetchRemoteStateOnce(false);
+    if(ok) alert('已同步后台已保存的最新数据');
+    else {
       const localOk = loadLocalScoreState();
       if(!localOk) alert('当前没有可同步的已保存数据');
       else alert('云端暂无已保存更新，已显示本地已保存数据');
@@ -910,46 +850,45 @@ document.getElementById('refreshBtn').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('playerText').addEventListener('input', () => {
-  if(!applyingRemoteState){
-    schedulePlayerDraftSync();
-  }
-});
-document.getElementById('matchTitle').addEventListener('input', () => {
-  if(!applyingRemoteState){
-    schedulePlayerDraftSync();
-  }
-});
-document.getElementById('courtText').addEventListener('input', () => {
-  if(!applyingRemoteState){
-    schedulePlayerDraftSync();
-  }
-});
+document.getElementById('playerText').addEventListener('input', () => { if(!applyingRemoteState){ schedulePlayerDraftSync(); } });
+document.getElementById('matchTitle').addEventListener('input', () => { if(!applyingRemoteState){ schedulePlayerDraftSync(); } });
+document.getElementById('courtText').addEventListener('input', () => { if(!applyingRemoteState){ schedulePlayerDraftSync(); } });
 
 window.addEventListener('storage', (e) => {
-  if(e.key === SCORE_STATE_STORAGE_KEY){
-    loadLocalScoreState();
-  }
+  if(e.key === SCORE_STATE_STORAGE_KEY){ loadLocalScoreState(); }
+});
+window.addEventListener('focus', () => { if(firebaseEnabled) fetchRemoteStateOnce(true); });
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && firebaseEnabled) fetchRemoteStateOnce(true);
+});
+window.addEventListener('online', () => {
+  setSyncStatus('syncing', '网络已恢复，正在重新同步…', `房间号：${roomId}`);
+  if(firebaseEnabled) fetchRemoteStateOnce(true);
+});
+window.addEventListener('offline', () => {
+  setSyncStatus('offline', '当前离线，修改会先保留在本机', `房间号：${roomId}`);
+});
+window.addEventListener('beforeunload', () => {
+  flushAllPendingSaves();
 });
 
 async function initApp(){
+  setSyncStatus(firebaseEnabled ? 'syncing' : 'offline', firebaseEnabled ? '打开链接后先同步后台数据…' : '未连接后台，当前为本地模式', `房间号：${roomId}`);
   let hasRemote = false;
-
   if(firebaseEnabled){
-    hasRemote = await fetchRemoteStateOnce();
+    hasRemote = await fetchRemoteStateOnce(true);
     listenScoreState();
   }
-
   const hasLocal = !hasRemote ? loadLocalScoreState() : false;
-
   if(!hasRemote && !hasLocal){
     loadPlayers();
     await generate();
+  } else if (firebaseEnabled && hasRemote) {
+    setSyncStatus('online', '已同步后台数据，可多人同时录比分', `房间号：${roomId} · 后台优先`);
   }
 }
 
 initApp();
 </script>
-
 </body>
 </html>
