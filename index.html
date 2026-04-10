@@ -142,9 +142,9 @@ David
 Jenny</textarea>
       </div>
       <div class="btns">
-        <button class="primary" id="generateBtn">自动生成最少场次</button>
+        <button class="primary" id="generateBtn">生成比赛并创建新链接</button>
         <button class="secondary" id="copyShareBtn">复制群文案</button>
-        <button class="secondary" id="copyRoomBtn">一键复制比赛链接</button>
+        <button class="secondary" id="copyRoomBtn">复制当前比赛链接</button>
       </div>
       <div id="coverageTags"></div>
       <div id="metaText" class="sub" style="margin-top:10px"></div>
@@ -169,7 +169,7 @@ Jenny</textarea>
           <div class="sub" style="margin:0">只显示第几轮；比分可直接录入。正式比赛与补位局 / 友谊局已做颜色区分。</div>
         </div>
         <div style="flex:0 0 auto">
-          <button class="secondary" id="refreshBtn" title="同步后台已保存数据" style="padding:8px 12px;white-space:nowrap">刷新比分</button>
+          <button class="secondary" id="refreshBtn" title="刷新本地最新比分" style="padding:8px 12px;white-space:nowrap">刷新比分</button>
         </div>
       </div>
       <div id="scheduleWrap"></div>
@@ -217,10 +217,6 @@ let docRef = null;
 let suppressRemoteSave = false;
 let applyingRemoteState = false;
 let unsubscribeRoom = null;
-let firstSnapshotResolved = false;
-let lastAppliedSavedAt = 0;
-let lastAppliedSavedBy = '';
-let roomReady = false;
 
 try {
   if (typeof firebase !== "undefined" && FIREBASE_CONFIG.apiKey !== "REPLACE_ME") {
@@ -235,13 +231,6 @@ try {
 
 const PLAYER_STORAGE_KEY = `badminton_players_autosave_v2_${roomId}`;
 const SCORE_STATE_STORAGE_KEY = `badminton_score_state_v1_${roomId}`;
-const CLIENT_ID_STORAGE_KEY = 'badminton_client_id_v1';
-let CLIENT_ID = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
-if(!CLIENT_ID){
-  CLIENT_ID = 'client_' + Math.random().toString(36).slice(2, 10);
-  localStorage.setItem(CLIENT_ID_STORAGE_KEY, CLIENT_ID);
-}
-let lastLocalSavedAt = 0;
 
 function savePlayers(){
   const el = document.getElementById('playerText');
@@ -251,51 +240,6 @@ function loadPlayers(){
   const saved = localStorage.getItem(PLAYER_STORAGE_KEY);
   const el = document.getElementById('playerText');
   if(saved && el) el.value = saved;
-}
-
-function applyDraftFields(data){
-  const matchTitleEl = document.getElementById('matchTitle');
-  const courtTextEl = document.getElementById('courtText');
-  const playerTextEl = document.getElementById('playerText');
-
-  if(matchTitleEl && data.matchTitle !== undefined) matchTitleEl.value = data.matchTitle || '';
-  if(courtTextEl && data.courtText !== undefined) courtTextEl.value = data.courtText || '';
-  if(playerTextEl){
-    if(data.draftPlayersText !== undefined && data.draftPlayersText !== null){
-      playerTextEl.value = data.draftPlayersText || '';
-    }else if(Array.isArray(data.players)){
-      playerTextEl.value = data.players.join('\n');
-    }
-  }
-}
-
-const playerDraftTimers = {};
-function schedulePlayerDraftSync(){
-  savePlayers();
-
-  const key = 'draft';
-  if(playerDraftTimers[key]) clearTimeout(playerDraftTimers[key]);
-
-  playerDraftTimers[key] = setTimeout(async () => {
-    if(!(firebaseEnabled && docRef) || suppressRemoteSave) return;
-    try{
-      const payload = {
-        matchTitle: document.getElementById('matchTitle')?.value || '',
-        courtText: document.getElementById('courtText')?.value || '',
-        draftPlayersText: document.getElementById('playerText')?.value || '',
-        roomId,
-        savedBy: CLIENT_ID,
-        savedAt: Date.now()
-      };
-      lastLocalSavedAt = payload.savedAt;
-      await docRef.set(payload, { merge: true });
-      roomReady = true;
-    }catch(err){
-      console.error('同步球员名单失败', err);
-    }finally{
-      delete playerDraftTimers[key];
-    }
-  }, 250);
 }
 
 function buildStatePayload(){
@@ -309,9 +253,6 @@ function buildStatePayload(){
     usedSparring: state.usedSparring,
     matchTitle: document.getElementById('matchTitle')?.value || '',
     courtText: document.getElementById('courtText')?.value || '',
-    draftPlayersText: document.getElementById('playerText')?.value || '',
-    roomId,
-    savedBy: CLIENT_ID,
     savedAt: Date.now()
   };
 }
@@ -320,7 +261,6 @@ async function saveScoreState(){
   try{
     if(!state.rounds || !state.rounds.length) return false;
     const payload = buildStatePayload();
-    lastLocalSavedAt = payload.savedAt;
     localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(payload));
     if(firebaseEnabled && docRef && !suppressRemoteSave){
       await docRef.set(payload, { merge: true });
@@ -334,36 +274,31 @@ async function saveScoreState(){
 
 function applyLoadedState(data){
   try{
-    if(!data) return false;
-    const incomingSavedAt = Number(data.savedAt || 0);
-
-    // 防止较旧的数据覆盖当前更晚的状态
-    if(incomingSavedAt && lastAppliedSavedAt && incomingSavedAt < lastAppliedSavedAt){
-      return false;
-    }
-
+    if(!data || !Array.isArray(data.rounds) || !Array.isArray(data.players)) return false;
     applyingRemoteState = true;
 
-    applyDraftFields(data);
+    state.players = data.players || [];
+    state.rounds = data.rounds || [];
+    state.matchCount = data.matchCount || 0;
+    state.targetMatches = data.targetMatches || 0;
+    state.coverage = data.coverage || 0;
+    state.totalPairs = data.totalPairs || 0;
+    state.usedSparring = !!data.usedSparring;
 
-    if(Array.isArray(data.rounds) && Array.isArray(data.players)){
-      state.players = data.players || [];
-      state.rounds = data.rounds || [];
-      state.matchCount = data.matchCount || 0;
-      state.targetMatches = data.targetMatches || 0;
-      state.coverage = data.coverage || 0;
-      state.totalPairs = data.totalPairs || 0;
-      state.usedSparring = !!data.usedSparring;
+    const matchTitleEl = document.getElementById('matchTitle');
+    const courtTextEl = document.getElementById('courtText');
+    const playerTextEl = document.getElementById('playerText');
 
-      state.standings = getStandings();
-      renderTags();
-      renderSchedule();
-      renderPlayers();
-      renderStats();
-    }
+    if(matchTitleEl) matchTitleEl.value = data.matchTitle || '';
+    if(courtTextEl) courtTextEl.value = data.courtText || '';
+    if(playerTextEl) playerTextEl.value = (data.players || []).join('\n');
 
-    lastAppliedSavedAt = incomingSavedAt || lastAppliedSavedAt;
-    lastAppliedSavedBy = data.savedBy || lastAppliedSavedBy;
+    state.standings = getStandings();
+    renderTags();
+    renderSchedule();
+    renderPlayers();
+    renderStats();
+
     applyingRemoteState = false;
     return true;
   }catch(err){
@@ -391,15 +326,10 @@ async function fetchRemoteStateOnce(){
     if(!snap.exists) return false;
     const data = snap.data();
     if(!data) return false;
-    if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt){
-      roomReady = true;
-      return true;
-    }
     suppressRemoteSave = true;
     const ok = applyLoadedState(data);
     if(ok){
       localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
-      roomReady = true;
     }
     suppressRemoteSave = false;
     return ok;
@@ -411,57 +341,22 @@ async function fetchRemoteStateOnce(){
 }
 
 function listenScoreState(){
-  if(!(firebaseEnabled && docRef)) return Promise.resolve(false);
+  if(!(firebaseEnabled && docRef)) return false;
   if(unsubscribeRoom) unsubscribeRoom();
-
-  return new Promise((resolve) => {
-    let resolved = false;
-
-    unsubscribeRoom = docRef.onSnapshot((doc) => {
-      const data = doc.data();
-
-      if(!data){
-        if(!resolved){
-          resolved = true;
-          firstSnapshotResolved = true;
-          resolve(false);
-        }
-        return;
-      }
-
-      if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt){
-        roomReady = true;
-        if(!resolved){
-          resolved = true;
-          firstSnapshotResolved = true;
-          resolve(true);
-        }
-        return;
-      }
-
-      suppressRemoteSave = true;
-      const ok = applyLoadedState(data);
-      if(ok){
-        localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
-        roomReady = true;
-      }
-      suppressRemoteSave = false;
-
-      if(!resolved){
-        resolved = true;
-        firstSnapshotResolved = true;
-        resolve(!!ok);
-      }
-    }, (err) => {
-      suppressRemoteSave = false;
-      console.log('云端同步失败，继续使用本地模式', err);
-      if(!resolved){
-        resolved = true
-        firstSnapshotResolved = true
-        resolve(false)
-      }
-    });
+  unsubscribeRoom = docRef.onSnapshot((doc) => {
+    const data = doc.data();
+    if(!data) return;
+    suppressRemoteSave = true;
+    const ok = applyLoadedState(data);
+    if(ok){
+      localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
+    }
+    suppressRemoteSave = false;
+  }, (err) => {
+    suppressRemoteSave = false;
+    console.log('云端同步失败，继续使用本地模式', err);
   });
+  return true;
 }
 
 const state = {
@@ -487,7 +382,7 @@ function scheduleDelayedSave(r, m){
     }finally{
       delete scoreSaveTimers[key];
     }
-  }, 220);
+  }, 1200);
 }
 
 function flushDelayedSave(r, m){
@@ -791,9 +686,9 @@ function renderSchedule(){
       scheduleDelayedSave(r, m);
     });
 
-    inp.addEventListener('blur', e => {
+    inp.addEventListener('blur', async e => {
       const r = Number(e.target.dataset.r), m = Number(e.target.dataset.m);
-      Promise.resolve(flushDelayedSave(r, m));
+      await flushDelayedSave(r, m);
     });
   });
 }
@@ -874,6 +769,59 @@ function openPlayerModal(name){
   document.getElementById('playerDialog').showModal();
 }
 
+function generateRoomId(){
+  const now = new Date();
+  const datePart = now.getFullYear().toString() +
+    String(now.getMonth() + 1).padStart(2, '0') +
+    String(now.getDate()).padStart(2, '0');
+  const randPart = Math.random().toString(36).slice(2, 8);
+  return `match-${datePart}-${randPart}`;
+}
+
+async function createNewMatchRoomAndGo(){
+  const names = uniqNames(document.getElementById('playerText').value);
+  if(names.length < 8 || names.length > 12){
+    alert('请输入 8-12 位不重复的参赛人员');
+    return;
+  }
+
+  try{
+    const nextRoomId = generateRoomId();
+    const nextUrl = buildRoomUrl(nextRoomId);
+    const result = generateEqualSchedule(names);
+
+    const payload = {
+      roomId: nextRoomId,
+      players: names.slice(),
+      rounds: result.rounds,
+      matchCount: result.matchCount,
+      targetMatches: result.targetMatches,
+      coverage: result.coverage,
+      totalPairs: result.totalPairs,
+      usedSparring: result.usedSparring,
+      matchTitle: document.getElementById('matchTitle')?.value || '羽毛球双打赛',
+      courtText: document.getElementById('courtText')?.value || '1号场,2号场',
+      draftPlayersText: document.getElementById('playerText')?.value || '',
+      savedBy: CLIENT_ID,
+      savedAt: Date.now()
+    };
+
+    await navigator.clipboard.writeText(nextUrl).catch(() => {});
+
+    if(firebaseEnabled && db){
+      await db.collection('badminton').doc(nextRoomId).set(payload, { merge: true });
+    }else{
+      localStorage.setItem(`badminton_players_autosave_v2_${nextRoomId}`, payload.draftPlayersText);
+      localStorage.setItem(`badminton_score_state_v1_${nextRoomId}`, JSON.stringify(payload));
+    }
+
+    window.location.href = nextUrl;
+  }catch(err){
+    console.error(err);
+    alert('创建比赛失败，请重试');
+  }
+}
+
 function buildRoomUrl(currentRoomId){
   const url = new URL(window.location.href);
   url.searchParams.set('room', currentRoomId || roomId || 'default');
@@ -918,30 +866,7 @@ function copyShare(){
 }
 
 async function generate(){
-  savePlayers();
-  const names = uniqNames(document.getElementById('playerText').value);
-  if(names.length < 8 || names.length > 12){
-    alert('请输入 8-12 位不重复的参赛人员');
-    return;
-  }
-  try{
-    const result = generateEqualSchedule(names);
-    state.players = names.slice();
-    state.rounds = result.rounds;
-    state.coverage = result.coverage;
-    state.totalPairs = result.totalPairs;
-    state.matchCount = result.matchCount;
-    state.usedSparring = result.usedSparring;
-    state.targetMatches = result.targetMatches;
-    state.standings = getStandings();
-    renderTags();
-    renderSchedule();
-    renderPlayers();
-    renderStats();
-    await saveScoreState();
-  }catch(err){
-    alert(err.message || '生成失败，请再试一次');
-  }
+  return createNewMatchRoomAndGo();
 }
 
 document.getElementById('generateBtn').addEventListener('click', () => { generate(); });
@@ -951,11 +876,9 @@ document.getElementById('refreshBtn').addEventListener('click', async () => {
   if(firebaseEnabled){
     const ok = await fetchRemoteStateOnce();
     if(ok){
-      alert('已同步后台已保存的最新数据');
+      alert('已同步后台最新数据');
     }else{
-      const localOk = loadLocalScoreState();
-      if(!localOk) alert('当前没有可同步的已保存数据');
-      else alert('云端暂无已保存更新，已显示本地已保存数据');
+      alert('后台暂时没有可同步的数据');
     }
   }else{
     const ok = loadLocalScoreState();
@@ -966,17 +889,7 @@ document.getElementById('refreshBtn').addEventListener('click', async () => {
 
 document.getElementById('playerText').addEventListener('input', () => {
   if(!applyingRemoteState){
-    schedulePlayerDraftSync();
-  }
-});
-document.getElementById('matchTitle').addEventListener('input', () => {
-  if(!applyingRemoteState){
-    schedulePlayerDraftSync();
-  }
-});
-document.getElementById('courtText').addEventListener('input', () => {
-  if(!applyingRemoteState){
-    schedulePlayerDraftSync();
+    savePlayersLocal();
   }
 });
 
@@ -987,32 +900,21 @@ window.addEventListener('storage', (e) => {
 });
 
 async function initApp(){
+  let hasRemote = false;
+  const hasLocal = loadLocalScoreState();
+
   if(firebaseEnabled){
-    const firstRemote = await listenScoreState();
-
-    if(firstRemote){
-      return;
-    }
-
-    const fetchedRemote = await fetchRemoteStateOnce();
-    if(fetchedRemote){
-      return;
-    }
-
-    const hasLocal = loadLocalScoreState();
-    if(hasLocal){
-      return;
-    }
-
-    loadPlayers();
-    await generate();
-    return;
+    hasRemote = await fetchRemoteStateOnce();
+    listenScoreState();
   }
 
-  const hasLocal = loadLocalScoreState();
-  if(!hasLocal){
-    loadPlayers();
+  if(!hasRemote && !hasLocal){
+    loadPlayersLocal();
     await generate();
+  }else if(!hasRemote && hasLocal){
+    // 本地已加载，等待云端监听后续更新
+  }else if(hasRemote){
+    // 云端优先，确保输入框 draft 不覆盖房间数据
   }
 }
 
