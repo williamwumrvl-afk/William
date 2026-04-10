@@ -773,8 +773,12 @@ function generateRoomId(){
   const now = new Date();
   const datePart = now.getFullYear().toString() +
     String(now.getMonth() + 1).padStart(2, '0') +
-    String(now.getDate()).padStart(2, '0');
-  const randPart = Math.random().toString(36).slice(2, 8);
+    String(now.getDate()).padStart(2, '0') +
+    '-' +
+    String(now.getHours()).padStart(2, '0') +
+    String(now.getMinutes()).padStart(2, '0') +
+    String(now.getSeconds()).padStart(2, '0');
+  const randPart = Math.random().toString(36).slice(2, 10);
   return `match-${datePart}-${randPart}`;
 }
 
@@ -787,7 +791,12 @@ async function createNewMatchRoomAndGo(){
 
   try{
     const nextRoomId = generateRoomId();
-    const nextUrl = buildRoomUrl(nextRoomId);
+    const baseUrl = new URL(window.location.origin + window.location.pathname);
+    baseUrl.search = '';
+    baseUrl.hash = '';
+    baseUrl.searchParams.set('room', nextRoomId);
+    const nextUrl = baseUrl.toString();
+
     const result = generateEqualSchedule(names);
 
     const payload = {
@@ -806,8 +815,6 @@ async function createNewMatchRoomAndGo(){
       savedAt: Date.now()
     };
 
-    await navigator.clipboard.writeText(nextUrl).catch(() => {});
-
     if(firebaseEnabled && db){
       await db.collection('badminton').doc(nextRoomId).set(payload, { merge: true });
     }else{
@@ -815,7 +822,11 @@ async function createNewMatchRoomAndGo(){
       localStorage.setItem(`badminton_score_state_v1_${nextRoomId}`, JSON.stringify(payload));
     }
 
-    window.location.href = nextUrl;
+    try{
+      await navigator.clipboard.writeText(nextUrl);
+    }catch(err){}
+
+    window.location.assign(nextUrl);
   }catch(err){
     console.error(err);
     alert('创建比赛失败，请重试');
@@ -823,7 +834,7 @@ async function createNewMatchRoomAndGo(){
 }
 
 function buildRoomUrl(currentRoomId){
-  const url = new URL(window.location.href);
+  const url = new URL(window.location.origin + window.location.pathname);
   url.searchParams.set('room', currentRoomId || roomId || 'default');
   return url.toString();
 }
