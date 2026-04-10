@@ -15,17 +15,6 @@
     .hero{background:linear-gradient(135deg,#0ea5e9,#22c55e);color:#fff;border-radius:24px;padding:20px 18px;box-shadow:0 12px 30px rgba(14,165,233,.20)}
     .hero h1{margin:0 0 6px;font-size:28px}
     .hero p{margin:0;opacity:.92;line-height:1.6}
-    .sync-banner{margin-top:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:18px;padding:12px 14px;backdrop-filter:blur(6px)}
-    .sync-banner .left{display:flex;align-items:center;gap:10px}
-    .sync-dot{width:10px;height:10px;border-radius:999px;background:#22c55e;display:inline-block;flex:0 0 auto;box-shadow:0 0 0 4px rgba(255,255,255,.12)}
-    .sync-dot.offline{background:#ef4444}
-    .sync-dot.syncing{background:#f59e0b}
-    .sync-text{font-weight:800}
-    .sync-meta{margin-top:6px;font-size:12px;opacity:.95}
-    .sync-grid{margin-top:10px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-    .sync-item{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.20);border-radius:14px;padding:9px 10px;min-width:0}
-    .sync-label{font-size:11px;opacity:.85;margin-bottom:4px}
-    .sync-value{font-size:13px;font-weight:800;line-height:1.35;word-break:break-word}
     .sync-banner{margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.26);border-radius:16px;padding:10px 12px}
     .sync-banner .left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     .sync-dot{width:10px;height:10px;border-radius:999px;background:#bbf7d0;box-shadow:0 0 0 4px rgba(187,247,208,.15)}
@@ -35,7 +24,7 @@
     .sync-meta{font-size:12px;opacity:.9}
     .grid{display:grid;gap:14px;margin-top:14px}
     .two{grid-template-columns:1.1fr .9fr}
-    @media (max-width:780px){.two{grid-template-columns:1fr}.sync-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (max-width:780px){.two{grid-template-columns:1fr}}
     .card{background:var(--card);border-radius:22px;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.06)}
     .title{font-size:18px;font-weight:800;margin:0 0 12px}
     .sub{color:var(--muted);font-size:13px;line-height:1.6}
@@ -101,8 +90,6 @@
     @media (max-width:600px){
       .app{padding:10px}
       .hero h1{font-size:22px}
-      .sync-grid{grid-template-columns:1fr}
-      .sync-item{padding:8px 9px}
       .card{padding:12px;border-radius:18px}
       .title{font-size:16px}
       textarea{min-height:140px}
@@ -132,12 +119,6 @@
         <div class="sync-text" id="syncText">正在准备同步…</div>
       </div>
       <div class="sync-meta" id="syncMeta">房间加载中</div>
-      <div class="sync-grid">
-        <div class="sync-item"><div class="sync-label">当前房间号</div><div class="sync-value" id="syncRoomValue">--</div></div>
-        <div class="sync-item"><div class="sync-label">本机最后保存时间</div><div class="sync-value" id="syncLocalTimeValue">暂无</div></div>
-        <div class="sync-item"><div class="sync-label">最近一次成功读取云端时间</div><div class="sync-value" id="syncRemoteTimeValue">暂无</div></div>
-        <div class="sync-item"><div class="sync-label">当前是否已连上云端</div><div class="sync-value" id="syncCloudValue">检测中</div></div>
-      </div>
     </div>
   </div>
 
@@ -240,15 +221,6 @@ try {
   if (typeof firebase !== "undefined" && FIREBASE_CONFIG.apiKey !== "REPLACE_ME") {
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.firestore();
-    try {
-      db.settings({
-        experimentalAutoDetectLongPolling: true,
-        useFetchStreams: false,
-        ignoreUndefinedProperties: true
-      });
-    } catch (settingsErr) {
-      console.warn('Firestore settings 应用失败，继续使用默认设置', settingsErr);
-    }
     docRef = db.collection("badminton").doc(roomId);
     firebaseEnabled = true;
   }
@@ -267,7 +239,6 @@ if(!CLIENT_ID){
 let lastLocalSavedAt = 0;
 let lastRemoteSavedAt = 0;
 let lastSyncMessage = '';
-let cloudConnectionState = firebaseEnabled ? '检测中' : '未启用';
 let scoreSaveInFlight = false;
 let queuedScoreSave = false;
 let queuedScoreSaveReason = '';
@@ -278,22 +249,6 @@ function formatSyncTime(ts){
   const d = new Date(ts);
   const pad = n => String(n).padStart(2, '0');
   return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-function renderSyncPanel(){
-  const roomEl = document.getElementById('syncRoomValue');
-  const localEl = document.getElementById('syncLocalTimeValue');
-  const remoteEl = document.getElementById('syncRemoteTimeValue');
-  const cloudEl = document.getElementById('syncCloudValue');
-  if(roomEl) roomEl.textContent = roomId;
-  if(localEl) localEl.textContent = lastLocalSavedAt ? formatSyncTime(lastLocalSavedAt) : '暂无';
-  if(remoteEl) remoteEl.textContent = lastRemoteSavedAt ? formatSyncTime(lastRemoteSavedAt) : '暂无';
-  if(cloudEl) cloudEl.textContent = cloudConnectionState;
-}
-
-function setCloudConnectionState(text){
-  cloudConnectionState = text;
-  renderSyncPanel();
 }
 
 function setSyncStatus(mode, text, meta){
@@ -307,7 +262,6 @@ function setSyncStatus(mode, text, meta){
   textEl.textContent = text || lastSyncMessage || '等待同步';
   metaEl.textContent = meta || `房间号：${roomId}`;
   if(text) lastSyncMessage = text;
-  renderSyncPanel();
 }
 
 function savePlayers(){
@@ -354,12 +308,10 @@ function schedulePlayerDraftSync(){
         savedAt: Date.now()
       };
       lastLocalSavedAt = payload.savedAt;
-      await writeRoomStateWithRetry(payload, 3);
-      setCloudConnectionState('已连接');
+      await docRef.set(payload, { merge: true });
       setSyncStatus('online', '人员录入已同步到后台', `最后写入：${formatSyncTime(payload.savedAt)}`);
     }catch(err){
       console.error('同步球员名单失败', err);
-      setCloudConnectionState('未连上');
       setSyncStatus('offline', '人员录入同步失败，仍可继续编辑', `房间号：${roomId}`);
     }finally{
       delete playerDraftTimers[key];
@@ -384,24 +336,6 @@ function buildStatePayload(){
   };
 }
 
-async function writeRoomStateWithRetry(payload, retryCount = 3){
-  if(!(firebaseEnabled && docRef)) return false;
-  let lastErr = null;
-  for(let attempt = 1; attempt <= retryCount; attempt++){
-    try{
-      await docRef.set(payload, { merge: true });
-      return true;
-    }catch(err){
-      lastErr = err;
-      console.warn(`第 ${attempt} 次写入后台失败`, err);
-      if(attempt < retryCount){
-        await delay(180 * attempt);
-      }
-    }
-  }
-  throw lastErr;
-}
-
 async function saveScoreState(reason){
   try{
     if(!state.rounds || !state.rounds.length) return false;
@@ -410,12 +344,10 @@ async function saveScoreState(reason){
     localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(payload));
     if(firebaseEnabled && docRef && !suppressRemoteSave){
       setSyncStatus('syncing', reason || '正在同步比分…', `房间号：${roomId}`);
-      await writeRoomStateWithRetry(payload, 3);
-      setCloudConnectionState('已连接');
+      await docRef.set(payload, { merge: true });
       scoreDirtySinceLastSave = false;
       setSyncStatus('online', '比分已实时同步', `最后写入：${formatSyncTime(payload.savedAt)}`);
     }else{
-      setCloudConnectionState('未启用');
       scoreDirtySinceLastSave = false;
       setSyncStatus('offline', '当前为本地模式，比分已保存到本机', `最后本地保存：${formatSyncTime(payload.savedAt)}`);
     }
@@ -475,10 +407,8 @@ function applyLoadedState(data, source){
     if(source === 'remote'){
       lastRemoteSavedAt = savedAt;
       hasEverLoadedRemote = true;
-      setCloudConnectionState('已连接');
       setSyncStatus('online', '已拉取后台最新数据', `后台时间：${formatSyncTime(savedAt)}`);
     } else {
-      if(source === 'local' && firebaseEnabled && !hasEverLoadedRemote){ setCloudConnectionState('未连上'); }
       setSyncStatus(firebaseEnabled ? 'online' : 'offline', source === 'local' ? '已读取本地已保存数据' : '数据已更新', `${source === 'local' ? '本地' : '更新时间'}：${formatSyncTime(savedAt)}`);
     }
 
@@ -487,7 +417,6 @@ function applyLoadedState(data, source){
   }catch(err){
     applyingRemoteState = false;
     console.error('应用状态失败', err);
-    setCloudConnectionState('未连上');
     setSyncStatus('offline', '读取同步数据失败', `房间号：${roomId}`);
     return false;
   }
@@ -504,33 +433,10 @@ function loadLocalScoreState(){
   }
 }
 
-function delay(ms){
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function getDocFromServerWithRetry(retryCount = 3){
-  if(!(firebaseEnabled && docRef)) return null;
-  let lastErr = null;
-  for(let attempt = 1; attempt <= retryCount; attempt++){
-    try{
-      const snap = await docRef.get({ source: 'server' });
-      setCloudConnectionState('已连接');
-      return snap;
-    }catch(err){
-      lastErr = err;
-      console.warn(`第 ${attempt} 次服务器读取失败`, err);
-      if(attempt < retryCount){
-        await delay(220 * attempt);
-      }
-    }
-  }
-  throw lastErr;
-}
-
 async function getRoomSnapshotPreferServer(allowFallback = true){
   if(!(firebaseEnabled && docRef)) return null;
   try{
-    return await getDocFromServerWithRetry(3);
+    return await docRef.get({ source: 'server' });
   }catch(serverErr){
     console.warn('服务器直连读取失败', serverErr);
     if(!allowFallback) throw serverErr;
@@ -597,14 +503,12 @@ function listenScoreState(){
     const ok = applyLoadedState(data, 'remote');
     if(ok){
       localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
-      setCloudConnectionState('已连接');
       setSyncStatus('online', '检测到其他人更新，已自动同步', `后台时间：${formatSyncTime(data.savedAt)}`);
     }
     suppressRemoteSave = false;
   }, (err) => {
     suppressRemoteSave = false;
     console.log('云端同步失败，继续使用本地模式', err);
-    setCloudConnectionState('未连上');
     setSyncStatus('offline', '实时监听失败，已切换为当前页面数据', `房间号：${roomId}`);
   });
   return true;
@@ -997,22 +901,11 @@ document.getElementById('refreshBtn').addEventListener('click', async () => {
       await flushAllPendingSaves();
     }
     const ok = await fetchRemoteStateOnce(false, true);
-    if(ok){
-      alert(`已强制同步服务器最新数据（房间号：${roomId}）`);
-      return;
-    }
-
-    const cachedRaw = localStorage.getItem(SCORE_STATE_STORAGE_KEY);
-    const cachedData = cachedRaw ? JSON.parse(cachedRaw) : null;
-    if(cachedData && cachedData.savedAt){
-      applyLoadedState(cachedData, 'local');
-      alert(`本次未能连上服务器，当前先显示本机最近一次已保存数据
-房间号：${roomId}
-本地时间：${formatSyncTime(cachedData.savedAt)}`);
-    }else{
-      alert(`本次未能连上服务器，也没有可用的本地缓存
-房间号：${roomId}
-请检查网络后重试`);
+    if(ok) alert(`已强制同步服务器最新数据（房间号：${roomId}）`);
+    else {
+      const localOk = loadLocalScoreState();
+      if(!localOk) alert(`服务器暂无可读取的最新数据（房间号：${roomId}），请检查网络后重试`);
+      else alert(`服务器拉取失败（房间号：${roomId}），当前先显示本地已保存数据`);
     }
   }else{
     const ok = loadLocalScoreState();
@@ -1033,12 +926,10 @@ document.addEventListener('visibilitychange', () => {
   if(document.visibilityState === 'visible' && firebaseEnabled) fetchRemoteStateOnce(true, false);
 });
 window.addEventListener('online', () => {
-  setCloudConnectionState('正在重连');
   setSyncStatus('syncing', '网络已恢复，正在重新同步…', `房间号：${roomId}`);
   if(firebaseEnabled) fetchRemoteStateOnce(true, false);
 });
 window.addEventListener('offline', () => {
-  setCloudConnectionState('未连上');
   setSyncStatus('offline', '当前离线，修改会先保留在本机', `房间号：${roomId}`);
 });
 window.addEventListener('beforeunload', () => {
@@ -1046,7 +937,6 @@ window.addEventListener('beforeunload', () => {
 });
 
 async function initApp(){
-  setCloudConnectionState(firebaseEnabled ? '检测中' : '未启用');
   setSyncStatus(firebaseEnabled ? 'syncing' : 'offline', firebaseEnabled ? '打开链接后先同步后台数据…' : '未连接后台，当前为本地模式', `房间号：${roomId}`);
   let hasRemote = false;
   if(firebaseEnabled){
@@ -1058,12 +948,10 @@ async function initApp(){
     loadPlayers();
     await generate();
   } else if (firebaseEnabled && hasRemote) {
-    setCloudConnectionState('已连接');
     setSyncStatus('online', '已同步后台数据，可多人同时录比分', `房间号：${roomId} · 后台优先`);
   }
 }
 
-renderSyncPanel();
 initApp();
 </script>
 </body>
