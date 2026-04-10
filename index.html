@@ -785,22 +785,31 @@ async function copyCurrentRoomLink(){
 }
 
 function copyShare(){
-  if(!state.rounds.length){ alert('请先生成比赛'); return; }
-  const lines = [`【${document.getElementById('matchTitle').value || '羽毛球双打赛'}】`];
+  if(!state.rounds.length){ 
+    alert('请先生成比赛'); 
+    return; 
+  }
+
+  const lines = [
+    `【${document.getElementById('matchTitle').value || '羽毛球双打赛'}】`
+  ];
+
   lines.push(`人数：${state.players.length}人`);
-  lines.push(`每人场次：${state.targetMatches}`);
-  lines.push(`总场次：${state.matchCount}`);
   lines.push(`总轮次：${state.rounds.length}`);
-  lines.push(`搭档覆盖：${state.coverage}/${state.totalPairs}`);
-  if(state.usedSparring) lines.push(`含 ${state.rounds.reduce((a,r)=>a+r.matches.filter(m=>m.sparring).length,0)} 场补位局 / 友谊局`);
   lines.push('');
+
   state.rounds.forEach(rd => {
     lines.push(`第${rd.round}轮`);
-    rd.matches.forEach(m => lines.push(`${m.teamA[0]}/${m.teamA[1]} VS ${m.teamB[0]}/${m.teamB[1]}${m.scoreA !== '' && m.scoreB !== '' ? `（${m.scoreA}:${m.scoreB}）` : ''}`));
+    rd.matches.forEach(m => {
+      lines.push(`${m.teamA[0]}/${m.teamA[1]} VS ${m.teamB[0]}/${m.teamB[1]}`);
+    });
     if(rd.bye.length) lines.push(`轮空：${rd.bye.join('、')}`);
     lines.push('');
   });
-  navigator.clipboard.writeText(lines.join('\n')).then(() => alert('已复制群文案')).catch(() => alert('复制失败'));
+
+  navigator.clipboard.writeText(lines.join('\n'))
+    .then(() => alert('已复制群文案'))
+    .catch(() => alert('复制失败'));
 }
 
 async function generate(){
