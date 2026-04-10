@@ -789,17 +789,18 @@ async function createNewMatchRoomAndGo(){
     return;
   }
 
+  const nextRoomId = generateRoomId();
+  const baseUrl = new URL(window.location.origin + window.location.pathname);
+  baseUrl.search = '';
+  baseUrl.hash = '';
+  baseUrl.searchParams.set('room', nextRoomId);
+  const nextUrl = baseUrl.toString();
+
+  let payload = null;
+
   try{
-    const nextRoomId = generateRoomId();
-    const baseUrl = new URL(window.location.origin + window.location.pathname);
-    baseUrl.search = '';
-    baseUrl.hash = '';
-    baseUrl.searchParams.set('room', nextRoomId);
-    const nextUrl = baseUrl.toString();
-
     const result = generateEqualSchedule(names);
-
-    const payload = {
+    payload = {
       roomId: nextRoomId,
       players: names.slice(),
       rounds: result.rounds,
@@ -814,23 +815,34 @@ async function createNewMatchRoomAndGo(){
       savedBy: CLIENT_ID,
       savedAt: Date.now()
     };
-
-    if(firebaseEnabled && db){
-      await db.collection('badminton').doc(nextRoomId).set(payload, { merge: true });
-    }else{
-      localStorage.setItem(`badminton_players_autosave_v2_${nextRoomId}`, payload.draftPlayersText);
-      localStorage.setItem(`badminton_score_state_v1_${nextRoomId}`, JSON.stringify(payload));
-    }
-
-    try{
-      await navigator.clipboard.writeText(nextUrl);
-    }catch(err){}
-
-    window.location.assign(nextUrl);
   }catch(err){
-    console.error(err);
-    alert('创建比赛失败，请重试');
+    console.error('生成对阵失败', err);
+    alert(err.message || '生成比赛失败，请重试');
+    return;
   }
+
+  // 先把新房间内容落到本地，保证即使云端失败也能跳转
+  try{
+    localStorage.setItem(`badminton_players_autosave_v2_${nextRoomId}`, payload.draftPlayersText);
+    localStorage.setItem(`badminton_score_state_v1_${nextRoomId}`, JSON.stringify(payload));
+  }catch(err){
+    console.error('写本地缓存失败', err);
+  }
+
+  // 云端写入失败时不阻塞创建链接
+  if(firebaseEnabled && db){
+    try{
+      await db.collection('badminton').doc(nextRoomId).set(payload, { merge: true });
+    }catch(err){
+      console.error('写入云端失败，仍继续跳转到新链接', err);
+    }
+  }
+
+  try{
+    await navigator.clipboard.writeText(nextUrl);
+  }catch(err){}
+
+  window.location.assign(nextUrl);
 }
 
 function buildRoomUrl(currentRoomId){
