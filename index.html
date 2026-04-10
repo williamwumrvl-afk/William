@@ -169,7 +169,7 @@ Jenny</textarea>
           <div class="sub" style="margin:0">只显示第几轮；比分可直接录入。正式比赛与补位局 / 友谊局已做颜色区分。</div>
         </div>
         <div style="flex:0 0 auto">
-          <button class="secondary" id="refreshBtn" title="刷新本地最新比分" style="padding:8px 12px;white-space:nowrap">刷新比分</button>
+          <button class="secondary" id="refreshBtn" title="同步后台已保存数据" style="padding:8px 12px;white-space:nowrap">刷新比分</button>
         </div>
       </div>
       <div id="scheduleWrap"></div>
@@ -231,6 +231,13 @@ try {
 
 const PLAYER_STORAGE_KEY = `badminton_players_autosave_v2_${roomId}`;
 const SCORE_STATE_STORAGE_KEY = `badminton_score_state_v1_${roomId}`;
+const CLIENT_ID_STORAGE_KEY = 'badminton_client_id_v1';
+let CLIENT_ID = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+if(!CLIENT_ID){
+  CLIENT_ID = 'client_' + Math.random().toString(36).slice(2, 10);
+  localStorage.setItem(CLIENT_ID_STORAGE_KEY, CLIENT_ID);
+}
+let lastLocalSavedAt = 0;
 
 function savePlayers(){
   const el = document.getElementById('playerText');
@@ -240,6 +247,49 @@ function loadPlayers(){
   const saved = localStorage.getItem(PLAYER_STORAGE_KEY);
   const el = document.getElementById('playerText');
   if(saved && el) el.value = saved;
+}
+
+function applyDraftFields(data){
+  const matchTitleEl = document.getElementById('matchTitle');
+  const courtTextEl = document.getElementById('courtText');
+  const playerTextEl = document.getElementById('playerText');
+
+  if(matchTitleEl && data.matchTitle !== undefined) matchTitleEl.value = data.matchTitle || '';
+  if(courtTextEl && data.courtText !== undefined) courtTextEl.value = data.courtText || '';
+  if(playerTextEl){
+    if(data.draftPlayersText !== undefined && data.draftPlayersText !== null){
+      playerTextEl.value = data.draftPlayersText || '';
+    }else if(Array.isArray(data.players)){
+      playerTextEl.value = data.players.join('\n');
+    }
+  }
+}
+
+const playerDraftTimers = {};
+function schedulePlayerDraftSync(){
+  savePlayers();
+
+  const key = 'draft';
+  if(playerDraftTimers[key]) clearTimeout(playerDraftTimers[key]);
+
+  playerDraftTimers[key] = setTimeout(async () => {
+    if(!(firebaseEnabled && docRef) || suppressRemoteSave) return;
+    try{
+      const payload = {
+        matchTitle: document.getElementById('matchTitle')?.value || '',
+        courtText: document.getElementById('courtText')?.value || '',
+        draftPlayersText: document.getElementById('playerText')?.value || '',
+        savedBy: CLIENT_ID,
+        savedAt: Date.now()
+      };
+      lastLocalSavedAt = payload.savedAt;
+      await docRef.set(payload, { merge: true });
+    }catch(err){
+      console.error('同步球员名单失败', err);
+    }finally{
+      delete playerDraftTimers[key];
+    }
+  }, 350);
 }
 
 function buildStatePayload(){
@@ -253,6 +303,8 @@ function buildStatePayload(){
     usedSparring: state.usedSparring,
     matchTitle: document.getElementById('matchTitle')?.value || '',
     courtText: document.getElementById('courtText')?.value || '',
+    draftPlayersText: document.getElementById('playerText')?.value || '',
+    savedBy: CLIENT_ID,
     savedAt: Date.now()
   };
 }
@@ -261,6 +313,7 @@ async function saveScoreState(){
   try{
     if(!state.rounds || !state.rounds.length) return false;
     const payload = buildStatePayload();
+    lastLocalSavedAt = payload.savedAt;
     localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(payload));
     if(firebaseEnabled && docRef && !suppressRemoteSave){
       await docRef.set(payload, { merge: true });
@@ -274,30 +327,26 @@ async function saveScoreState(){
 
 function applyLoadedState(data){
   try{
-    if(!data || !Array.isArray(data.rounds) || !Array.isArray(data.players)) return false;
+    if(!data) return false;
     applyingRemoteState = true;
 
-    state.players = data.players || [];
-    state.rounds = data.rounds || [];
-    state.matchCount = data.matchCount || 0;
-    state.targetMatches = data.targetMatches || 0;
-    state.coverage = data.coverage || 0;
-    state.totalPairs = data.totalPairs || 0;
-    state.usedSparring = !!data.usedSparring;
+    applyDraftFields(data);
 
-    const matchTitleEl = document.getElementById('matchTitle');
-    const courtTextEl = document.getElementById('courtText');
-    const playerTextEl = document.getElementById('playerText');
+    if(Array.isArray(data.rounds) && Array.isArray(data.players)){
+      state.players = data.players || [];
+      state.rounds = data.rounds || [];
+      state.matchCount = data.matchCount || 0;
+      state.targetMatches = data.targetMatches || 0;
+      state.coverage = data.coverage || 0;
+      state.totalPairs = data.totalPairs || 0;
+      state.usedSparring = !!data.usedSparring;
 
-    if(matchTitleEl) matchTitleEl.value = data.matchTitle || '';
-    if(courtTextEl) courtTextEl.value = data.courtText || '';
-    if(playerTextEl) playerTextEl.value = (data.players || []).join('\n');
-
-    state.standings = getStandings();
-    renderTags();
-    renderSchedule();
-    renderPlayers();
-    renderStats();
+      state.standings = getStandings();
+      renderTags();
+      renderSchedule();
+      renderPlayers();
+      renderStats();
+    }
 
     applyingRemoteState = false;
     return true;
@@ -326,6 +375,7 @@ async function fetchRemoteStateOnce(){
     if(!snap.exists) return false;
     const data = snap.data();
     if(!data) return false;
+    if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt) return true;
     suppressRemoteSave = true;
     const ok = applyLoadedState(data);
     if(ok){
@@ -346,6 +396,7 @@ function listenScoreState(){
   unsubscribeRoom = docRef.onSnapshot((doc) => {
     const data = doc.data();
     if(!data) return;
+    if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt) return;
     suppressRemoteSave = true;
     const ok = applyLoadedState(data);
     if(ok){
@@ -382,7 +433,7 @@ function scheduleDelayedSave(r, m){
     }finally{
       delete scoreSaveTimers[key];
     }
-  }, 1200);
+  }, 350);
 }
 
 function flushDelayedSave(r, m){
@@ -686,9 +737,9 @@ function renderSchedule(){
       scheduleDelayedSave(r, m);
     });
 
-    inp.addEventListener('blur', async e => {
+    inp.addEventListener('blur', e => {
       const r = Number(e.target.dataset.r), m = Number(e.target.dataset.m);
-      await flushDelayedSave(r, m);
+      flushDelayedSave(r, m);
     });
   });
 }
@@ -861,7 +912,17 @@ document.getElementById('refreshBtn').addEventListener('click', async () => {
 
 document.getElementById('playerText').addEventListener('input', () => {
   if(!applyingRemoteState){
-    savePlayers();
+    schedulePlayerDraftSync();
+  }
+});
+document.getElementById('matchTitle').addEventListener('input', () => {
+  if(!applyingRemoteState){
+    schedulePlayerDraftSync();
+  }
+});
+document.getElementById('courtText').addEventListener('input', () => {
+  if(!applyingRemoteState){
+    schedulePlayerDraftSync();
   }
 });
 
@@ -873,20 +934,17 @@ window.addEventListener('storage', (e) => {
 
 async function initApp(){
   let hasRemote = false;
-  const hasLocal = loadLocalScoreState();
 
   if(firebaseEnabled){
     hasRemote = await fetchRemoteStateOnce();
     listenScoreState();
   }
 
+  const hasLocal = !hasRemote ? loadLocalScoreState() : false;
+
   if(!hasRemote && !hasLocal){
     loadPlayers();
     await generate();
-  }else if(!hasRemote && hasLocal){
-    // 本地已加载，等待云端监听后续更新
-  }else if(hasRemote){
-    // 云端优先，确保输入框 draft 不覆盖房间数据
   }
 }
 
