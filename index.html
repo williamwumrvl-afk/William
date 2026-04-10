@@ -217,6 +217,10 @@ let docRef = null;
 let suppressRemoteSave = false;
 let applyingRemoteState = false;
 let unsubscribeRoom = null;
+let firstSnapshotResolved = false;
+let lastAppliedSavedAt = 0;
+let lastAppliedSavedBy = '';
+let roomReady = false;
 
 try {
   if (typeof firebase !== "undefined" && FIREBASE_CONFIG.apiKey !== "REPLACE_ME") {
@@ -279,17 +283,19 @@ function schedulePlayerDraftSync(){
         matchTitle: document.getElementById('matchTitle')?.value || '',
         courtText: document.getElementById('courtText')?.value || '',
         draftPlayersText: document.getElementById('playerText')?.value || '',
+        roomId,
         savedBy: CLIENT_ID,
         savedAt: Date.now()
       };
       lastLocalSavedAt = payload.savedAt;
       await docRef.set(payload, { merge: true });
+      roomReady = true;
     }catch(err){
       console.error('同步球员名单失败', err);
     }finally{
       delete playerDraftTimers[key];
     }
-  }, 350);
+  }, 250);
 }
 
 function buildStatePayload(){
@@ -304,6 +310,7 @@ function buildStatePayload(){
     matchTitle: document.getElementById('matchTitle')?.value || '',
     courtText: document.getElementById('courtText')?.value || '',
     draftPlayersText: document.getElementById('playerText')?.value || '',
+    roomId,
     savedBy: CLIENT_ID,
     savedAt: Date.now()
   };
@@ -328,6 +335,13 @@ async function saveScoreState(){
 function applyLoadedState(data){
   try{
     if(!data) return false;
+    const incomingSavedAt = Number(data.savedAt || 0);
+
+    // 防止较旧的数据覆盖当前更晚的状态
+    if(incomingSavedAt && lastAppliedSavedAt && incomingSavedAt < lastAppliedSavedAt){
+      return false;
+    }
+
     applyingRemoteState = true;
 
     applyDraftFields(data);
@@ -348,6 +362,8 @@ function applyLoadedState(data){
       renderStats();
     }
 
+    lastAppliedSavedAt = incomingSavedAt || lastAppliedSavedAt;
+    lastAppliedSavedBy = data.savedBy || lastAppliedSavedBy;
     applyingRemoteState = false;
     return true;
   }catch(err){
@@ -375,11 +391,15 @@ async function fetchRemoteStateOnce(){
     if(!snap.exists) return false;
     const data = snap.data();
     if(!data) return false;
-    if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt) return true;
+    if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt){
+      roomReady = true;
+      return true;
+    }
     suppressRemoteSave = true;
     const ok = applyLoadedState(data);
     if(ok){
       localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
+      roomReady = true;
     }
     suppressRemoteSave = false;
     return ok;
@@ -391,23 +411,57 @@ async function fetchRemoteStateOnce(){
 }
 
 function listenScoreState(){
-  if(!(firebaseEnabled && docRef)) return false;
+  if(!(firebaseEnabled && docRef)) return Promise.resolve(false);
   if(unsubscribeRoom) unsubscribeRoom();
-  unsubscribeRoom = docRef.onSnapshot((doc) => {
-    const data = doc.data();
-    if(!data) return;
-    if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt) return;
-    suppressRemoteSave = true;
-    const ok = applyLoadedState(data);
-    if(ok){
-      localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
-    }
-    suppressRemoteSave = false;
-  }, (err) => {
-    suppressRemoteSave = false;
-    console.log('云端同步失败，继续使用本地模式', err);
+
+  return new Promise((resolve) => {
+    let resolved = false;
+
+    unsubscribeRoom = docRef.onSnapshot((doc) => {
+      const data = doc.data();
+
+      if(!data){
+        if(!resolved){
+          resolved = true;
+          firstSnapshotResolved = true;
+          resolve(false);
+        }
+        return;
+      }
+
+      if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt){
+        roomReady = true;
+        if(!resolved){
+          resolved = true;
+          firstSnapshotResolved = true;
+          resolve(true);
+        }
+        return;
+      }
+
+      suppressRemoteSave = true;
+      const ok = applyLoadedState(data);
+      if(ok){
+        localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
+        roomReady = true;
+      }
+      suppressRemoteSave = false;
+
+      if(!resolved){
+        resolved = true;
+        firstSnapshotResolved = true;
+        resolve(!!ok);
+      }
+    }, (err) => {
+      suppressRemoteSave = false;
+      console.log('云端同步失败，继续使用本地模式', err);
+      if(!resolved){
+        resolved = true
+        firstSnapshotResolved = true
+        resolve(false)
+      }
+    });
   });
-  return true;
 }
 
 const state = {
@@ -433,7 +487,7 @@ function scheduleDelayedSave(r, m){
     }finally{
       delete scoreSaveTimers[key];
     }
-  }, 350);
+  }, 220);
 }
 
 function flushDelayedSave(r, m){
@@ -739,7 +793,7 @@ function renderSchedule(){
 
     inp.addEventListener('blur', e => {
       const r = Number(e.target.dataset.r), m = Number(e.target.dataset.m);
-      flushDelayedSave(r, m);
+      Promise.resolve(flushDelayedSave(r, m));
     });
   });
 }
@@ -933,16 +987,30 @@ window.addEventListener('storage', (e) => {
 });
 
 async function initApp(){
-  let hasRemote = false;
-
   if(firebaseEnabled){
-    hasRemote = await fetchRemoteStateOnce();
-    listenScoreState();
+    const firstRemote = await listenScoreState();
+
+    if(firstRemote){
+      return;
+    }
+
+    const fetchedRemote = await fetchRemoteStateOnce();
+    if(fetchedRemote){
+      return;
+    }
+
+    const hasLocal = loadLocalScoreState();
+    if(hasLocal){
+      return;
+    }
+
+    loadPlayers();
+    await generate();
+    return;
   }
 
-  const hasLocal = !hasRemote ? loadLocalScoreState() : false;
-
-  if(!hasRemote && !hasLocal){
+  const hasLocal = loadLocalScoreState();
+  if(!hasLocal){
     loadPlayers();
     await generate();
   }
