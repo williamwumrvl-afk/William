@@ -231,7 +231,7 @@ try {
   console.log("Firebase 未启用，使用本地模式", e);
 }
 
-const PLAYER_STORAGE_KEY = 'badminton_players_autosave_v2';
+const PLAYER_STORAGE_KEY = `badminton_players_autosave_v2_${roomId}`;
 function savePlayers(){
   const el = document.getElementById('playerText');
   if(el) localStorage.setItem(PLAYER_STORAGE_KEY, el.value || '');
@@ -242,29 +242,9 @@ function loadPlayers(){
   if(saved && el) el.value = saved;
 }
 
-const SCORE_STATE_STORAGE_KEY = 'badminton_score_state_v1';
-// ===== 延迟同步控制（5秒防抖）=====
-const scoreSyncTimers = {};
+const SCORE_STATE_STORAGE_KEY = `badminton_score_state_v1_${roomId}`;
+// 本地缓存按 room 隔离，避免不同比赛互相污染
 
-function scheduleDelayedSync(r, m) {
-  const key = `${r}-${m}`;
-
-  // 清除之前的定时器
-  if (scoreSyncTimers[key]) {
-    clearTimeout(scoreSyncTimers[key]);
-  }
-
-  // 设置新的 5 秒延迟
-  scoreSyncTimers[key] = setTimeout(async () => {
-    try {
-      await saveScoreState();
-    } catch (err) {
-      console.error('同步失败', err);
-    } finally {
-      delete scoreSyncTimers[key];
-    }
-  }, 5000);
-}
 function buildStatePayload(){
   return {
     players: state.players,
@@ -298,8 +278,16 @@ function applyLoadedState(data){
   state.coverage = data.coverage || 0;
   state.totalPairs = data.totalPairs || 0;
   state.usedSparring = !!data.usedSparring;
-  if(document.getElementById('matchTitle') && data.matchTitle) document.getElementById('matchTitle').value = data.matchTitle;
-  if(document.getElementById('courtText') && data.courtText) document.getElementById('courtText').value = data.courtText;
+
+  const matchTitleEl = document.getElementById('matchTitle');
+  const courtTextEl = document.getElementById('courtText');
+  const playerTextEl = document.getElementById('playerText');
+
+  if(matchTitleEl) matchTitleEl.value = data.matchTitle || '';
+  if(courtTextEl) courtTextEl.value = data.courtText || '';
+  if(playerTextEl) playerTextEl.value = (data.players || []).join('
+');
+
   state.standings = getStandings();
   renderTags();
   renderSchedule();
@@ -627,22 +615,15 @@ function renderSchedule(){
   });
 
   wrap.querySelectorAll('input').forEach(inp => {
-inp.addEventListener('input', e => {
-  const r = Number(e.target.dataset.r);
-  const m = Number(e.target.dataset.m);
-  const f = e.target.dataset.f;
-
-  state.rounds[r].matches[m][f] = e.target.value;
-
-  // 本地即时更新
-  state.standings = getStandings();
-  renderStats();
-  renderPlayers();
-  renderTags();
-
-  // 延迟5秒同步
-  scheduleDelayedSync(r, m);
-});
+    inp.addEventListener('input', e => {
+      const r = Number(e.target.dataset.r), m = Number(e.target.dataset.m), f = e.target.dataset.f;
+      state.rounds[r].matches[m][f] = e.target.value;
+      state.standings = getStandings();
+      renderStats();
+      renderPlayers();
+      renderTags();
+      Promise.resolve(saveScoreState());
+    });
   });
 }
 function renderPlayers(){
@@ -834,13 +815,17 @@ window.addEventListener('storage', (e) => {
     loadLocalScoreState();
   }
 });
-loadPlayers();
 const localLoaded = loadLocalScoreState();
 listenScoreState();
+
+if(!localLoaded){
+  loadPlayers();
+}
+
 if(!localLoaded){
   setTimeout(() => {
     if(!state.rounds.length) generate();
-  }, firebaseEnabled ? 1200 : 0);
+  }, firebaseEnabled ? 2000 : 0);
 }
 </script>
 </body>
