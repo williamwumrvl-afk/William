@@ -239,6 +239,10 @@ if(!CLIENT_ID){
 let lastLocalSavedAt = 0;
 let lastRemoteSavedAt = 0;
 let lastSyncMessage = '';
+let scoreSaveInFlight = false;
+let queuedScoreSave = false;
+let queuedScoreSaveReason = '';
+let scoreDirtySinceLastSave = false;
 
 function formatSyncTime(ts){
   if(!ts) return '暂无同步时间';
@@ -341,8 +345,10 @@ async function saveScoreState(reason){
     if(firebaseEnabled && docRef && !suppressRemoteSave){
       setSyncStatus('syncing', reason || '正在同步比分…', `房间号：${roomId}`);
       await docRef.set(payload, { merge: true });
+      scoreDirtySinceLastSave = false;
       setSyncStatus('online', '比分已实时同步', `最后写入：${formatSyncTime(payload.savedAt)}`);
     }else{
+      scoreDirtySinceLastSave = false;
       setSyncStatus('offline', '当前为本地模式，比分已保存到本机', `最后本地保存：${formatSyncTime(payload.savedAt)}`);
     }
     return true;
@@ -350,6 +356,29 @@ async function saveScoreState(reason){
     console.error('保存失败', err);
     setSyncStatus('offline', '比分同步失败，已保留当前页面内容', `房间号：${roomId}`);
     return false;
+  }
+}
+
+async function pushScoreStateNow(reason){
+  if(!(state.rounds && state.rounds.length)) return false;
+  if(scoreSaveInFlight){
+    queuedScoreSave = true;
+    queuedScoreSaveReason = reason || queuedScoreSaveReason || '正在继续同步最新比分…';
+    return true;
+  }
+
+  scoreSaveInFlight = true;
+  try{
+    const ok = await saveScoreState(reason || '正在同步比分…');
+    return ok;
+  } finally {
+    scoreSaveInFlight = false;
+    if(queuedScoreSave){
+      const nextReason = queuedScoreSaveReason || '正在继续同步最新比分…';
+      queuedScoreSave = false;
+      queuedScoreSaveReason = '';
+      await pushScoreStateNow(nextReason);
+    }
   }
 }
 
@@ -404,12 +433,38 @@ function loadLocalScoreState(){
   }
 }
 
-async function fetchRemoteStateOnce(silent){
+async function getRoomSnapshotPreferServer(allowFallback = true){
+  if(!(firebaseEnabled && docRef)) return null;
+  try{
+    return await docRef.get({ source: 'server' });
+  }catch(serverErr){
+    console.warn('服务器直连读取失败', serverErr);
+    if(!allowFallback) throw serverErr;
+    try{
+      return await docRef.get();
+    }catch(defaultErr){
+      console.error('默认读取也失败', defaultErr);
+      throw defaultErr;
+    }
+  }
+}
+
+async function fetchRemoteStateOnce(silent, forceServerOnly = false){
   if(!(firebaseEnabled && docRef)) return false;
   try{
-    if(!silent) setSyncStatus('syncing', '正在从后台拉取最新数据…', `房间号：${roomId}`);
-    const snap = await docRef.get();
-    if(!snap.exists) return false;
+    if(!silent) setSyncStatus('syncing', forceServerOnly ? '正在强制从后台拉取最新数据…' : '正在从后台拉取最新数据…', `房间号：${roomId}`);
+    let snap = await getRoomSnapshotPreferServer(!forceServerOnly);
+    if((!snap || !snap.exists) && !forceServerOnly){
+      try{
+        snap = await docRef.get({ source: 'cache' });
+      }catch(cacheErr){
+        console.warn('缓存读取失败', cacheErr);
+      }
+    }
+    if(!snap || !snap.exists){
+      if(!silent) setSyncStatus('offline', forceServerOnly ? '服务器上还没有这场比赛的最新数据' : '后台还没有这场比赛的数据', `房间号：${roomId}`);
+      return false;
+    }
     const data = snap.data();
     if(!data) return false;
     if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt){
@@ -430,7 +485,7 @@ async function fetchRemoteStateOnce(silent){
   }catch(err){
     suppressRemoteSave = false;
     console.error('拉取云端数据失败', err);
-    if(!silent) setSyncStatus('offline', '后台拉取失败，继续使用当前数据', `房间号：${roomId}`);
+    if(!silent) setSyncStatus('offline', forceServerOnly ? '强制拉取服务器数据失败，请检查网络后再试' : '后台拉取失败，继续使用当前数据', `房间号：${roomId}`);
     return false;
   }
 }
@@ -438,9 +493,10 @@ async function fetchRemoteStateOnce(silent){
 function listenScoreState(){
   if(!(firebaseEnabled && docRef)) return false;
   if(unsubscribeRoom) unsubscribeRoom();
-  unsubscribeRoom = docRef.onSnapshot((doc) => {
+  unsubscribeRoom = docRef.onSnapshot({ includeMetadataChanges: true }, (doc) => {
     const data = doc.data();
     if(!data) return;
+    if(doc.metadata && doc.metadata.hasPendingWrites) return;
     if(data.savedBy === CLIENT_ID && data.savedAt === lastLocalSavedAt) return;
     if(lastRemoteSavedAt && data.savedAt && data.savedAt <= lastRemoteSavedAt) return;
     suppressRemoteSave = true;
@@ -472,35 +528,40 @@ const state = {
 const scoreSaveTimers = {};
 function scheduleDelayedSave(r, m){
   const key = `${r}-${m}`;
+  scoreDirtySinceLastSave = true;
   if(scoreSaveTimers[key]) clearTimeout(scoreSaveTimers[key]);
   scoreSaveTimers[key] = setTimeout(async () => {
     try{
-      await saveScoreState('正在同步比分…');
+      await pushScoreStateNow('正在快速同步比分…');
     }catch(err){
       console.error('延迟同步失败', err);
     }finally{
       delete scoreSaveTimers[key];
     }
-  }, 180);
+  }, 80);
 }
 
 function flushDelayedSave(r, m){
   const key = `${r}-${m}`;
+  scoreDirtySinceLastSave = true;
   if(scoreSaveTimers[key]){
     clearTimeout(scoreSaveTimers[key]);
     delete scoreSaveTimers[key];
   }
-  return saveScoreState('正在立即提交比分…');
+  return pushScoreStateNow('正在立即提交比分…');
 }
 
 async function flushAllPendingSaves(){
   const keys = Object.keys(scoreSaveTimers);
-  if(!keys.length) return;
-  keys.forEach(key => {
-    clearTimeout(scoreSaveTimers[key]);
-    delete scoreSaveTimers[key];
-  });
-  await saveScoreState('正在提交最后修改…');
+  if(keys.length){
+    keys.forEach(key => {
+      clearTimeout(scoreSaveTimers[key]);
+      delete scoreSaveTimers[key];
+    });
+  }
+  if(scoreDirtySinceLastSave){
+    await pushScoreStateNow('正在提交最后修改…');
+  }
 }
 
 function pairKey(a,b){ return a < b ? a + '|' + b : b + '|' + a; }
@@ -836,12 +897,15 @@ document.getElementById('copyShareBtn').addEventListener('click', copyShare);
 document.getElementById('copyRoomBtn').addEventListener('click', copyCurrentRoomLink);
 document.getElementById('refreshBtn').addEventListener('click', async () => {
   if(firebaseEnabled){
-    const ok = await fetchRemoteStateOnce(false);
-    if(ok) alert('已同步后台已保存的最新数据');
+    if(scoreDirtySinceLastSave){
+      await flushAllPendingSaves();
+    }
+    const ok = await fetchRemoteStateOnce(false, true);
+    if(ok) alert(`已强制同步服务器最新数据（房间号：${roomId}）`);
     else {
       const localOk = loadLocalScoreState();
-      if(!localOk) alert('当前没有可同步的已保存数据');
-      else alert('云端暂无已保存更新，已显示本地已保存数据');
+      if(!localOk) alert(`服务器暂无可读取的最新数据（房间号：${roomId}），请检查网络后重试`);
+      else alert(`服务器拉取失败（房间号：${roomId}），当前先显示本地已保存数据`);
     }
   }else{
     const ok = loadLocalScoreState();
@@ -857,13 +921,13 @@ document.getElementById('courtText').addEventListener('input', () => { if(!apply
 window.addEventListener('storage', (e) => {
   if(e.key === SCORE_STATE_STORAGE_KEY){ loadLocalScoreState(); }
 });
-window.addEventListener('focus', () => { if(firebaseEnabled) fetchRemoteStateOnce(true); });
+window.addEventListener('focus', () => { if(firebaseEnabled) fetchRemoteStateOnce(true, false); });
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible' && firebaseEnabled) fetchRemoteStateOnce(true);
+  if(document.visibilityState === 'visible' && firebaseEnabled) fetchRemoteStateOnce(true, false);
 });
 window.addEventListener('online', () => {
   setSyncStatus('syncing', '网络已恢复，正在重新同步…', `房间号：${roomId}`);
-  if(firebaseEnabled) fetchRemoteStateOnce(true);
+  if(firebaseEnabled) fetchRemoteStateOnce(true, false);
 });
 window.addEventListener('offline', () => {
   setSyncStatus('offline', '当前离线，修改会先保留在本机', `房间号：${roomId}`);
@@ -876,7 +940,7 @@ async function initApp(){
   setSyncStatus(firebaseEnabled ? 'syncing' : 'offline', firebaseEnabled ? '打开链接后先同步后台数据…' : '未连接后台，当前为本地模式', `房间号：${roomId}`);
   let hasRemote = false;
   if(firebaseEnabled){
-    hasRemote = await fetchRemoteStateOnce(true);
+    hasRemote = await fetchRemoteStateOnce(true, false);
     listenScoreState();
   }
   const hasLocal = !hasRemote ? loadLocalScoreState() : false;
