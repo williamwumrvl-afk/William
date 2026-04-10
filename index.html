@@ -144,8 +144,6 @@ Jenny</textarea>
       <div class="btns">
         <button class="primary" id="generateBtn">自动生成最少场次</button>
         <button class="secondary" id="copyShareBtn">复制群文案</button>
-        <button class="secondary" id="createRoomBtn">一键创建比赛链接</button>
-        <button class="secondary" id="copyRoomBtn">复制比赛链接</button>
         </div>
       <div id="coverageTags"></div>
       <div id="metaText" class="sub" style="margin-top:10px"></div>
@@ -161,7 +159,7 @@ Jenny</textarea>
         <div>5. 必要时可使用 1 场或 2 场陪打局；陪打人员不计入正式参赛名单、场次和成绩统计。</div>
         <div>6. 同一轮次正式比赛中的两场比赛不能出现同一个人。</div>
         <div>7. 每个人最多轮空两轮。</div>
-        <div>8. 比分支持自动保存；配置 Firebase 后可多人实时同步，未配置时仍使用本地保存。</div>
+        <div>8. 比分会自动实时保存到本地；支持同一浏览器多标签页即时刷新同步。</div>
       </div>
     </div>
   </div>
@@ -243,7 +241,6 @@ function loadPlayers(){
 }
 
 const SCORE_STATE_STORAGE_KEY = `badminton_score_state_v1_${roomId}`;
-// 本地缓存按 room 隔离，避免不同比赛互相污染
 
 function buildStatePayload(){
   return {
@@ -270,31 +267,36 @@ async function saveScoreState(){
   }catch(err){}
 }
 function applyLoadedState(data){
-  if(!data || !Array.isArray(data.rounds) || !Array.isArray(data.players)) return false;
-  state.players = data.players || [];
-  state.rounds = data.rounds || [];
-  state.matchCount = data.matchCount || 0;
-  state.targetMatches = data.targetMatches || 0;
-  state.coverage = data.coverage || 0;
-  state.totalPairs = data.totalPairs || 0;
-  state.usedSparring = !!data.usedSparring;
+  try{
+    if(!data || !Array.isArray(data.rounds) || !Array.isArray(data.players)) return false;
+    state.players = data.players || [];
+    state.rounds = data.rounds || [];
+    state.matchCount = data.matchCount || 0;
+    state.targetMatches = data.targetMatches || 0;
+    state.coverage = data.coverage || 0;
+    state.totalPairs = data.totalPairs || 0;
+    state.usedSparring = !!data.usedSparring;
 
-  const matchTitleEl = document.getElementById('matchTitle');
-  const courtTextEl = document.getElementById('courtText');
-  const playerTextEl = document.getElementById('playerText');
+    const matchTitleEl = document.getElementById('matchTitle');
+    const courtTextEl = document.getElementById('courtText');
+    const playerTextEl = document.getElementById('playerText');
 
-  if(matchTitleEl) matchTitleEl.value = data.matchTitle || '';
-  if(courtTextEl) courtTextEl.value = data.courtText || '';
-  if(playerTextEl) playerTextEl.value = (data.players || []).join('
+    if(matchTitleEl) matchTitleEl.value = data.matchTitle || '';
+    if(courtTextEl) courtTextEl.value = data.courtText || '';
+    if(playerTextEl) playerTextEl.value = (data.players || []).join('
 ');
 
-  state.standings = getStandings();
-  renderTags();
-  renderSchedule();
-  renderPlayers();
-  renderStats();
-  return true;
+    state.standings = getStandings();
+    renderTags();
+    renderSchedule();
+    renderPlayers();
+    renderStats();
+    return true;
+  }catch(err){
+    return false;
+  }
 }
+
 function loadLocalScoreState(){
   try{
     const raw = localStorage.getItem(SCORE_STATE_STORAGE_KEY);
@@ -305,6 +307,7 @@ function loadLocalScoreState(){
     return false;
   }
 }
+
 function listenScoreState(){
   if(!(firebaseEnabled && docRef)) return false;
   docRef.onSnapshot((doc) => {
@@ -330,6 +333,22 @@ const state = {
   usedSparring: false,
   standings: []
 };
+
+const scoreSaveTimers = {};
+
+function scheduleDelayedSave(r, m){
+  const key = `${r}-${m}`;
+  if(scoreSaveTimers[key]) clearTimeout(scoreSaveTimers[key]);
+  scoreSaveTimers[key] = setTimeout(async () => {
+    try{
+      await saveScoreState();
+    }catch(err){
+      console.error('延迟同步失败', err);
+    }finally{
+      delete scoreSaveTimers[key];
+    }
+  }, 5000);
+}
 
 function shuffle(arr){
   const a = arr.slice();
@@ -622,7 +641,7 @@ function renderSchedule(){
       renderStats();
       renderPlayers();
       renderTags();
-      Promise.resolve(saveScoreState());
+      scheduleDelayedSave(r, m);
     });
   });
 }
@@ -703,60 +722,6 @@ function openPlayerModal(name){
   `;
   document.getElementById('playerDialog').showModal();
 }
-function generateRoomId() {
-  const now = new Date();
-  const datePart = now.getFullYear().toString() +
-    String(now.getMonth() + 1).padStart(2, '0') +
-    String(now.getDate()).padStart(2, '0');
-  const randPart = Math.random().toString(36).slice(2, 8);
-  return `match-${datePart}-${randPart}`;
-}
-function buildRoomUrl(nextRoomId) {
-  const url = new URL(window.location.href);
-  url.searchParams.set('room', nextRoomId);
-  return url.toString();
-}
-async function copyCurrentRoomLink(){
-  try{
-    await navigator.clipboard.writeText(buildRoomUrl(roomId));
-    alert('比赛链接已复制');
-  }catch(err){
-    alert('复制失败');
-  }
-}
-async function createRoomAndGo() {
-  const names = uniqNames(document.getElementById('playerText').value);
-  if (names.length < 8 || names.length > 12) {
-    alert('请输入 8-12 位不重复的参赛人员');
-    return;
-  }
-  try {
-    const nextRoomId = generateRoomId();
-    const nextUrl = buildRoomUrl(nextRoomId);
-    const result = generateEqualSchedule(names);
-    const payload = {
-      players: names.slice(),
-      rounds: result.rounds,
-      matchCount: result.matchCount,
-      targetMatches: result.targetMatches,
-      coverage: result.coverage,
-      totalPairs: result.totalPairs,
-      usedSparring: result.usedSparring,
-      matchTitle: document.getElementById('matchTitle').value || '羽毛球双打赛',
-      courtText: document.getElementById('courtText').value || '1号场,2号场',
-      savedAt: Date.now()
-    };
-    localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(payload));
-    if(firebaseEnabled && db){
-      await db.collection('badminton').doc(nextRoomId).set(payload, { merge: true });
-    }
-    try { await navigator.clipboard.writeText(nextUrl); } catch (e) {}
-    window.location.href = nextUrl;
-  } catch (err) {
-    alert(err.message || '创建比赛失败');
-  }
-}
-
 function copyShare(){
   if(!state.rounds.length){ alert('请先生成比赛'); return; }
   const lines = [`【${document.getElementById('matchTitle').value || '羽毛球双打赛'}】`];
@@ -796,18 +761,16 @@ function generate(){
     renderSchedule();
     renderPlayers();
     renderStats();
-    Promise.resolve(saveScoreState());
+    saveScoreState();
   }catch(err){
     alert(err.message || '生成失败，请再试一次');
   }
 }
 document.getElementById('generateBtn').addEventListener('click', generate);
 document.getElementById('copyShareBtn').addEventListener('click', copyShare);
-document.getElementById('createRoomBtn').addEventListener('click', createRoomAndGo);
-document.getElementById('copyRoomBtn').addEventListener('click', copyCurrentRoomLink);
 document.getElementById('refreshBtn').addEventListener('click', () => {
   const ok = loadLocalScoreState();
-  if(!ok) alert(firebaseEnabled ? '当前没有可刷新的本地缓存，云端会自动同步最新比分' : '当前没有可刷新的本地比分记录');
+  if(!ok) alert(firebaseEnabled ? '当前没有可刷新的本地缓存，云端会自动同步最新数据' : '当前没有可刷新的本地比分记录');
 });
 document.getElementById('playerText').addEventListener('input', savePlayers);
 window.addEventListener('storage', (e) => {
@@ -815,6 +778,7 @@ window.addEventListener('storage', (e) => {
     loadLocalScoreState();
   }
 });
+
 const localLoaded = loadLocalScoreState();
 listenScoreState();
 
