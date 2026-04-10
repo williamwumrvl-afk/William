@@ -787,6 +787,33 @@ async function copyCurrentRoomLink(){
     alert('复制失败');
   }
 }
+function generatePreviewInPlace(){
+  const names = uniqNames(document.getElementById('playerText').value);
+  if(names.length < 8 || names.length > 12){
+    return false;
+  }
+
+  try{
+    const result = generateEqualSchedule(names);
+    state.players = names.slice();
+    state.rounds = result.rounds;
+    state.coverage = result.coverage;
+    state.totalPairs = result.totalPairs;
+    state.matchCount = result.matchCount;
+    state.usedSparring = result.usedSparring;
+    state.targetMatches = result.targetMatches;
+    state.standings = getStandings();
+    renderTags();
+    renderSchedule();
+    renderPlayers();
+    renderStats();
+    return true;
+  }catch(err){
+    console.error('生成本地预览失败', err);
+    return false;
+  }
+}
+
 async function createNewMatchRoomAndGo(){
   const names = uniqNames(document.getElementById('playerText').value);
   if(names.length < 8 || names.length > 12){
@@ -882,7 +909,12 @@ document.getElementById('refreshBtn').addEventListener('click', async () => {
   }
 });
 document.getElementById('playerText').addEventListener('input', () => {
-  if(!applyingRemoteState) scheduleDraftSync();
+  if(!applyingRemoteState){
+    scheduleDraftSync();
+    if(!state.rounds.length){
+      generatePreviewInPlace();
+    }
+  }
 });
 document.getElementById('matchTitle').addEventListener('input', () => {
   if(!applyingRemoteState) scheduleDraftSync();
@@ -915,16 +947,22 @@ async function initApp(){
   if(firebaseEnabled){
     await seedRoomIfMissing();
     listenScoreState();
+
     const fetchedRemote = await fetchRemoteStateOnce();
     if(fetchedRemote) return;
 
+    const hasLocal = loadLocalScoreState();
+    if(hasLocal) return;
+
     loadPlayersLocal();
+    generatePreviewInPlace();
     return;
   }
 
   const hasLocal = loadLocalScoreState();
   if(!hasLocal){
     loadPlayersLocal();
+    generatePreviewInPlace();
   }
 }
 initApp();
