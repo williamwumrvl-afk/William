@@ -33,19 +33,19 @@
     .secondary{background:#eef6ff;color:#0b66a7}
     .pill{display:inline-flex;align-items:center;padding:7px 10px;border-radius:999px;font-size:12px;margin:6px 8px 0 0;background:#f8fafc;border:1px solid var(--line)}
     .ok{color:var(--ok)} .warn{color:var(--warn)} .danger{color:var(--danger)}
-    .schedule-round{border:1px solid var(--line);border-radius:18px;padding:14px;margin-top:10px}
-    .schedule-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px dashed #d9e8f5}
-    .match{border-radius:16px;background:linear-gradient(180deg,#f8fbff,#ffffff);padding:9px 10px;margin-top:10px;border:1px solid rgba(14,165,233,.08)}
+    .schedule-round{border:1px solid var(--line);border-radius:14px;padding:10px 10px 8px;margin-top:8px}
+    .schedule-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px;padding-bottom:4px;border-bottom:1px dashed #d9e8f5}
+    .match{border-radius:12px;background:linear-gradient(180deg,#f8fbff,#ffffff);padding:6px 8px;margin-top:6px;border:1px solid rgba(14,165,233,.08)}
     .match.sparring{
       background:linear-gradient(180deg,#fff7ed,#fffbeb);
       border:1px solid #fdba74;
       box-shadow:0 6px 18px rgba(249,115,22,.10);
     }
     .match-badge{
-      display:inline-flex;align-items:center;gap:6px;
-      font-size:12px;font-weight:800;
-      padding:5px 10px;border-radius:999px;
-      margin-bottom:8px;
+      display:inline-flex;align-items:center;gap:5px;
+      font-size:11px;font-weight:800;
+      padding:3px 8px;border-radius:999px;
+      margin-bottom:5px;
       letter-spacing:.02em;
     }
     .match-badge.regular{
@@ -54,13 +54,13 @@
     .match-badge.sparring{
       background:#ffedd5;color:#9a3412;border:1px solid #fdba74;
     }
-    .teamrow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}
-    .team{background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px 10px;box-shadow:0 2px 10px rgba(14,165,233,.06);font-size:15px;line-height:1.26;font-weight:800;letter-spacing:.01em}
+    .teamrow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center}
+    .team{background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 8px;box-shadow:0 2px 8px rgba(14,165,233,.06);font-size:14px;line-height:1.18;font-weight:800;letter-spacing:.01em}
     .match.sparring .team{background:rgba(255,255,255,.72);border-color:#fed7aa}
     .team div{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
     .scorewrap{display:flex;align-items:center;gap:2px;justify-content:center}
-    .scorewrap input{width:48px;text-align:center;padding:6px 4px;font-size:15px;font-weight:800}
-    .scorewrap span{font-size:12px;font-weight:800}
+    .scorewrap input{width:44px;text-align:center;padding:5px 4px;font-size:15px;font-weight:800}
+    .scorewrap span{font-size:11px;font-weight:800}
     .player-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
     .player-chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px;cursor:pointer;text-align:center}
     .player-chip:hover{background:#f8fbff}
@@ -68,7 +68,7 @@
     .dialog-card{padding:18px}
     .dialog-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
     .mini{background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:10px}
-    .small{font-size:12px;color:var(--muted)}
+    .small{font-size:11px;color:var(--muted)}
     .stats-hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 48%,#38bdf8);color:#fff;border-radius:22px;padding:14px 16px;margin-bottom:10px;box-shadow:0 14px 30px rgba(29,78,216,.22)}
     .stats-hero h3{margin:0;font-size:24px;line-height:1.2}
     .stats-hero p{margin:4px 0 0;opacity:.92;font-size:13px}
@@ -102,9 +102,9 @@
       textarea{min-height:140px}
       .player-grid{grid-template-columns:repeat(3,1fr)}
       .player-chip{padding:10px;font-size:12px}
-      .teamrow{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) !important;gap:6px}
-      .team{padding:7px 8px;font-size:14px;font-weight:800}
-      .scorewrap input{width:40px;padding:5px 4px;font-size:14px;font-weight:800}
+      .teamrow{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) !important;gap:4px}
+      .team{padding:6px 7px;font-size:13px;font-weight:800}
+      .scorewrap input{width:36px;padding:4px 3px;font-size:14px;font-weight:800}
       .scorewrap span{font-size:11px;font-weight:800}
       .stats-headbar,.stats-row{grid-template-columns:50px 1.2fr .66fr .66fr .66fr .74fr;gap:4px;padding:8px}
       .player-name-elite{font-size:15px !important}
@@ -145,22 +145,18 @@ Jenny</textarea>
         <button class="primary" id="generateBtn">自动生成最少场次</button>
         <button class="secondary" id="copyShareBtn">复制群文案</button>
         <button class="secondary" id="copyRoomBtn">一键复制比赛链接</button>
-        </div>
+      </div>
       <div id="coverageTags"></div>
       <div id="metaText" class="sub" style="margin-top:10px"></div>
     </div>
 
     <div class="card">
-      <div class="title">规则说明</div>
+      <div class="title">【温馨提示】</div>
       <div class="sub">
-        <div>1. 每一轮优先安排两场比赛同时进行。</div>
-        <div>2. 最多只允许最后两轮是单场地比赛。</div>
-        <div>3. 为满足双场地优先，其他条件可适当放宽。</div>
-        <div>4. 仍尽量让不同球员多换搭档。</div>
-        <div>5. 必要时可使用 1 场或 2 场陪打局；陪打人员不计入正式参赛名单、场次和成绩统计。</div>
-        <div>6. 同一轮次正式比赛中的两场比赛不能出现同一个人。</div>
-        <div>7. 每个人最多轮空两轮。</div>
-        <div>8. 配置 Firebase 后，同一 room 在不同手机打开会自动同步保存；“刷新比分”会拉取已保存的最新数据，不会删除已保存比分。</div>
+        <div>1⃣请大家打球之前做好热身运动，打完球做拉伸运动放松。</div>
+        <div>2⃣喝酒了的朋友严禁报名打球。如患有高血压，心血脑病，等不适宜激烈运动疾病的球友严禁报名，运动过程中如有不适应及时休息。</div>
+        <div>3⃣本球会不具有审查球友身体状况的职能，更不具有医疗救助的义务；凡出现运动意外的，均由运动者本人负责，本球会不承担组织责任。</div>
+        <div>4⃣打球属于个人自愿，凡报名参加运动的，均视为完全接受本申明内容，自愿对各种运动意外后果自行承担法律风险；且对各种运动意外后果自行承担法律风险，与球会组织无关了</div>
       </div>
     </div>
   </div>
@@ -200,6 +196,7 @@ Jenny</textarea>
   </div>
 </dialog>
 
+
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
@@ -219,6 +216,7 @@ let db = null;
 let docRef = null;
 let suppressRemoteSave = false;
 let applyingRemoteState = false;
+let unsubscribeRoom = null;
 
 try {
   if (typeof firebase !== "undefined" && FIREBASE_CONFIG.apiKey !== "REPLACE_ME") {
@@ -232,6 +230,7 @@ try {
 }
 
 const PLAYER_STORAGE_KEY = `badminton_players_autosave_v2_${roomId}`;
+const SCORE_STATE_STORAGE_KEY = `badminton_score_state_v1_${roomId}`;
 
 function savePlayers(){
   const el = document.getElementById('playerText');
@@ -242,8 +241,6 @@ function loadPlayers(){
   const el = document.getElementById('playerText');
   if(saved && el) el.value = saved;
 }
-
-const SCORE_STATE_STORAGE_KEY = `badminton_score_state_v1_${roomId}`;
 
 function buildStatePayload(){
   return {
@@ -259,23 +256,27 @@ function buildStatePayload(){
     savedAt: Date.now()
   };
 }
+
 async function saveScoreState(){
   try{
-    if(!state.rounds || !state.rounds.length) return;
+    if(!state.rounds || !state.rounds.length) return false;
     const payload = buildStatePayload();
     localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(payload));
     if(firebaseEnabled && docRef && !suppressRemoteSave){
       await docRef.set(payload, { merge: true });
     }
+    return true;
   }catch(err){
     console.error('保存失败', err);
+    return false;
   }
 }
+
 function applyLoadedState(data){
   try{
     if(!data || !Array.isArray(data.rounds) || !Array.isArray(data.players)) return false;
-
     applyingRemoteState = true;
+
     state.players = data.players || [];
     state.rounds = data.rounds || [];
     state.matchCount = data.matchCount || 0;
@@ -288,8 +289,8 @@ function applyLoadedState(data){
     const courtTextEl = document.getElementById('courtText');
     const playerTextEl = document.getElementById('playerText');
 
-    if(matchTitleEl && data.matchTitle !== undefined) matchTitleEl.value = data.matchTitle || '';
-    if(courtTextEl && data.courtText !== undefined) courtTextEl.value = data.courtText || '';
+    if(matchTitleEl) matchTitleEl.value = data.matchTitle || '';
+    if(courtTextEl) courtTextEl.value = data.courtText || '';
     if(playerTextEl) playerTextEl.value = (data.players || []).join('\n');
 
     state.standings = getStandings();
@@ -297,11 +298,12 @@ function applyLoadedState(data){
     renderSchedule();
     renderPlayers();
     renderStats();
+
     applyingRemoteState = false;
     return true;
   }catch(err){
     applyingRemoteState = false;
-    console.error('加载状态失败', err);
+    console.error('应用状态失败', err);
     return false;
   }
 }
@@ -317,16 +319,41 @@ function loadLocalScoreState(){
   }
 }
 
+async function fetchRemoteStateOnce(){
+  if(!(firebaseEnabled && docRef)) return false;
+  try{
+    const snap = await docRef.get();
+    if(!snap.exists) return false;
+    const data = snap.data();
+    if(!data) return false;
+    suppressRemoteSave = true;
+    const ok = applyLoadedState(data);
+    if(ok){
+      localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
+    }
+    suppressRemoteSave = false;
+    return ok;
+  }catch(err){
+    suppressRemoteSave = false;
+    console.error('拉取云端数据失败', err);
+    return false;
+  }
+}
+
 function listenScoreState(){
   if(!(firebaseEnabled && docRef)) return false;
-  docRef.onSnapshot((doc) => {
+  if(unsubscribeRoom) unsubscribeRoom();
+  unsubscribeRoom = docRef.onSnapshot((doc) => {
     const data = doc.data();
     if(!data) return;
     suppressRemoteSave = true;
-    applyLoadedState(data);
-    localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
+    const ok = applyLoadedState(data);
+    if(ok){
+      localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
+    }
     suppressRemoteSave = false;
   }, (err) => {
+    suppressRemoteSave = false;
     console.log('云端同步失败，继续使用本地模式', err);
   });
   return true;
@@ -344,7 +371,6 @@ const state = {
 };
 
 const scoreSaveTimers = {};
-
 function scheduleDelayedSave(r, m){
   const key = `${r}-${m}`;
   if(scoreSaveTimers[key]) clearTimeout(scoreSaveTimers[key]);
@@ -356,7 +382,16 @@ function scheduleDelayedSave(r, m){
     }finally{
       delete scoreSaveTimers[key];
     }
-  }, 5000);
+  }, 1200);
+}
+
+function flushDelayedSave(r, m){
+  const key = `${r}-${m}`;
+  if(scoreSaveTimers[key]){
+    clearTimeout(scoreSaveTimers[key]);
+    delete scoreSaveTimers[key];
+  }
+  return saveScoreState();
 }
 
 function shuffle(arr){
@@ -444,7 +479,6 @@ function combineIntoRounds(matches){
       let overlap = 0;
       used2.forEach(p => { if(used.has(p)) overlap++; });
 
-      // 硬约束：同一轮两场正式比赛不能出现同一个人
       if(!first.sparring && !cand.sparring && overlap > 0){
         continue;
       }
@@ -635,7 +669,6 @@ function renderSchedule(){
           </div>
           <div class="team"><div>${m.teamB[0]}</div><div>${m.teamB[1]}</div></div>
         </div>
-        ${m.sparring ? '<div class="small" style="margin-top:6px;color:#9a3412">本场为陪打补位局，不计入正式球员统计</div>' : '<div class="small" style="margin-top:6px;color:#0369a1">正式比赛，计入球员成绩统计</div>'}
       `;
       box.appendChild(match);
     });
@@ -655,12 +688,7 @@ function renderSchedule(){
 
     inp.addEventListener('blur', async e => {
       const r = Number(e.target.dataset.r), m = Number(e.target.dataset.m);
-      const key = `${r}-${m}`;
-      if(scoreSaveTimers[key]){
-        clearTimeout(scoreSaveTimers[key]);
-        delete scoreSaveTimers[key];
-      }
-      await saveScoreState();
+      await flushDelayedSave(r, m);
     });
   });
 }
@@ -718,7 +746,6 @@ function openPlayerModal(name){
       const inA = m.teamA.includes(name), inB = m.teamB.includes(name);
       if(!inA && !inB) return;
       const myTeam = inA ? m.teamA : m.teamB;
-      const partner = inA ? m.teamA.find(x => x !== name) : m.teamB.find(x => x !== name);
       const opponents = inA ? m.teamB : m.teamA;
       items.push(`
         <div class="match">
@@ -741,33 +768,12 @@ function openPlayerModal(name){
   `;
   document.getElementById('playerDialog').showModal();
 }
-async function fetchRemoteStateOnce(){
-  if(!(firebaseEnabled && docRef)) return false;
-  try{
-    const snap = await docRef.get();
-    if(!snap.exists) return false;
-    const data = snap.data();
-    if(!data) return false;
-    suppressRemoteSave = true;
-    const ok = applyLoadedState(data);
-    if(ok){
-      localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(data));
-    }
-    suppressRemoteSave = false;
-    return ok;
-  }catch(err){
-    suppressRemoteSave = false;
-    console.error('拉取云端数据失败', err);
-    return false;
-  }
-}
 
 function buildRoomUrl(currentRoomId){
   const url = new URL(window.location.href);
   url.searchParams.set('room', currentRoomId || roomId || 'default');
   return url.toString();
 }
-
 async function copyCurrentRoomLink(){
   try{
     const url = buildRoomUrl(roomId);
@@ -796,7 +802,8 @@ function copyShare(){
   });
   navigator.clipboard.writeText(lines.join('\n')).then(() => alert('已复制群文案')).catch(() => alert('复制失败'));
 }
-function generate(){
+
+async function generate(){
   savePlayers();
   const names = uniqNames(document.getElementById('playerText').value);
   if(names.length < 8 || names.length > 12){
@@ -817,23 +824,24 @@ function generate(){
     renderSchedule();
     renderPlayers();
     renderStats();
-    Promise.resolve(saveScoreState());
+    await saveScoreState();
   }catch(err){
     alert(err.message || '生成失败，请再试一次');
   }
 }
-document.getElementById('generateBtn').addEventListener('click', generate);
+
+document.getElementById('generateBtn').addEventListener('click', () => { generate(); });
 document.getElementById('copyShareBtn').addEventListener('click', copyShare);
 document.getElementById('copyRoomBtn').addEventListener('click', copyCurrentRoomLink);
 document.getElementById('refreshBtn').addEventListener('click', async () => {
   if(firebaseEnabled){
     const ok = await fetchRemoteStateOnce();
     if(ok){
-      alert('已同步最新已保存数据');
+      alert('已同步后台已保存的最新数据');
     }else{
       const localOk = loadLocalScoreState();
       if(!localOk) alert('当前没有可同步的已保存数据');
-      else alert('云端暂无更新，已显示本地已保存数据');
+      else alert('云端暂无已保存更新，已显示本地已保存数据');
     }
   }else{
     const ok = loadLocalScoreState();
@@ -841,37 +849,40 @@ document.getElementById('refreshBtn').addEventListener('click', async () => {
     else alert('已刷新本地已保存比分');
   }
 });
+
 document.getElementById('playerText').addEventListener('input', () => {
   if(!applyingRemoteState){
     savePlayers();
   }
 });
+
 window.addEventListener('storage', (e) => {
   if(e.key === SCORE_STATE_STORAGE_KEY){
     loadLocalScoreState();
   }
 });
 
-const localLoaded = loadLocalScoreState();
-const listeningRemote = listenScoreState();
+async function initApp(){
+  let hasRemote = false;
+  const hasLocal = loadLocalScoreState();
 
-if(!localLoaded){
-  loadPlayers();
+  if(firebaseEnabled){
+    hasRemote = await fetchRemoteStateOnce();
+    listenScoreState();
+  }
+
+  if(!hasRemote && !hasLocal){
+    loadPlayers();
+    await generate();
+  }else if(!hasRemote && hasLocal){
+    // 本地已加载，等待云端监听后续更新
+  }else if(hasRemote){
+    // 云端优先，确保输入框 draft 不覆盖房间数据
+  }
 }
 
-if(!localLoaded){
-  setTimeout(() => {
-    if(!state.rounds.length) generate();
-  }, firebaseEnabled ? 2000 : 0);
-}
-
-if(firebaseEnabled && listeningRemote){
-  setTimeout(() => {
-    if(!state.rounds.length){
-      generate();
-    }
-  }, 3500);
-}
+initApp();
 </script>
+
 </body>
 </html>
