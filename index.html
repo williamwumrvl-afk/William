@@ -197,6 +197,7 @@ Jenny</textarea>
 </dialog>
 
 
+
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
@@ -211,15 +212,26 @@ const FIREBASE_CONFIG = {
 };
 
 const roomId = new URLSearchParams(location.search).get("room") || "default";
+
+// ===== 客户端唯一ID（每台设备不同）=====
+const CLIENT_ID_STORAGE_KEY = 'badminton_client_id_v1';
+let CLIENT_ID = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+if(!CLIENT_ID){
+  CLIENT_ID = 'client_' + Math.random().toString(36).slice(2, 10);
+  localStorage.setItem(CLIENT_ID_STORAGE_KEY, CLIENT_ID);
+}
+
 let firebaseEnabled = false;
 let db = null;
 let docRef = null;
 let suppressRemoteSave = false;
 let applyingRemoteState = false;
 let unsubscribeRoom = null;
+let lastLocalSavedAt = 0;
+let lastAppliedSavedAt = 0;
 
 try {
-  if (typeof firebase !== "undefined" && FIREBASE_CONFIG.apiKey !== "REPLACE_ME") {
+  if (typeof firebase !== "undefined" && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== "REPLACE_ME") {
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.firestore();
     docRef = db.collection("badminton").doc(roomId);
@@ -232,18 +244,30 @@ try {
 const PLAYER_STORAGE_KEY = `badminton_players_autosave_v2_${roomId}`;
 const SCORE_STATE_STORAGE_KEY = `badminton_score_state_v1_${roomId}`;
 
-function savePlayers(){
+function savePlayersLocal(){
   const el = document.getElementById('playerText');
   if(el) localStorage.setItem(PLAYER_STORAGE_KEY, el.value || '');
 }
-function loadPlayers(){
+function loadPlayersLocal(){
   const saved = localStorage.getItem(PLAYER_STORAGE_KEY);
   const el = document.getElementById('playerText');
   if(saved && el) el.value = saved;
 }
 
+function buildDraftPayload(){
+  return {
+    roomId,
+    matchTitle: document.getElementById('matchTitle')?.value || '',
+    courtText: document.getElementById('courtText')?.value || '',
+    draftPlayersText: document.getElementById('playerText')?.value || '',
+    savedBy: CLIENT_ID,
+    savedAt: Date.now()
+  };
+}
+
 function buildStatePayload(){
   return {
+    roomId,
     players: state.players,
     rounds: state.rounds,
     matchCount: state.matchCount,
@@ -253,14 +277,34 @@ function buildStatePayload(){
     usedSparring: state.usedSparring,
     matchTitle: document.getElementById('matchTitle')?.value || '',
     courtText: document.getElementById('courtText')?.value || '',
+    draftPlayersText: document.getElementById('playerText')?.value || '',
+    savedBy: CLIENT_ID,
     savedAt: Date.now()
   };
+}
+
+function applyDraftFields(data){
+  const matchTitleEl = document.getElementById('matchTitle');
+  const courtTextEl = document.getElementById('courtText');
+  const playerTextEl = document.getElementById('playerText');
+
+  if(matchTitleEl && data.matchTitle !== undefined) matchTitleEl.value = data.matchTitle || '';
+  if(courtTextEl && data.courtText !== undefined) courtTextEl.value = data.courtText || '';
+  if(playerTextEl){
+    if(data.draftPlayersText !== undefined && data.draftPlayersText !== null){
+      playerTextEl.value = data.draftPlayersText || '';
+    }else if(Array.isArray(data.players)){
+      playerTextEl.value = data.players.join('\n');
+    }
+  }
+  savePlayersLocal();
 }
 
 async function saveScoreState(){
   try{
     if(!state.rounds || !state.rounds.length) return false;
     const payload = buildStatePayload();
+    lastLocalSavedAt = payload.savedAt;
     localStorage.setItem(SCORE_STATE_STORAGE_KEY, JSON.stringify(payload));
     if(firebaseEnabled && docRef && !suppressRemoteSave){
       await docRef.set(payload, { merge: true });
@@ -274,31 +318,33 @@ async function saveScoreState(){
 
 function applyLoadedState(data){
   try{
-    if(!data || !Array.isArray(data.rounds) || !Array.isArray(data.players)) return false;
+    if(!data) return false;
+    const incomingSavedAt = Number(data.savedAt || 0);
+    if(incomingSavedAt && lastAppliedSavedAt && incomingSavedAt < lastAppliedSavedAt){
+      return false;
+    }
+
     applyingRemoteState = true;
+    applyDraftFields(data);
 
-    state.players = data.players || [];
-    state.rounds = data.rounds || [];
-    state.matchCount = data.matchCount || 0;
-    state.targetMatches = data.targetMatches || 0;
-    state.coverage = data.coverage || 0;
-    state.totalPairs = data.totalPairs || 0;
-    state.usedSparring = !!data.usedSparring;
+    if(Array.isArray(data.rounds) && Array.isArray(data.players)){
+      state.players = data.players || [];
+      state.rounds = data.rounds || [];
+      state.matchCount = data.matchCount || 0;
+      state.targetMatches = data.targetMatches || 0;
+      state.coverage = data.coverage || 0;
+      state.totalPairs = data.totalPairs || 0;
+      state.usedSparring = !!data.usedSparring;
+      state.standings = getStandings();
+      renderTags();
+      renderSchedule();
+      renderPlayers();
+      renderStats();
+    }
 
-    const matchTitleEl = document.getElementById('matchTitle');
-    const courtTextEl = document.getElementById('courtText');
-    const playerTextEl = document.getElementById('playerText');
-
-    if(matchTitleEl) matchTitleEl.value = data.matchTitle || '';
-    if(courtTextEl) courtTextEl.value = data.courtText || '';
-    if(playerTextEl) playerTextEl.value = (data.players || []).join('\n');
-
-    state.standings = getStandings();
-    renderTags();
-    renderSchedule();
-    renderPlayers();
-    renderStats();
-
+    if(incomingSavedAt){
+      lastAppliedSavedAt = incomingSavedAt;
+    }
     applyingRemoteState = false;
     return true;
   }catch(err){
@@ -326,6 +372,11 @@ async function fetchRemoteStateOnce(){
     if(!snap.exists) return false;
     const data = snap.data();
     if(!data) return false;
+
+    if(data.savedBy === CLIENT_ID && Number(data.savedAt || 0) === lastLocalSavedAt){
+      return true;
+    }
+
     suppressRemoteSave = true;
     const ok = applyLoadedState(data);
     if(ok){
@@ -341,11 +392,17 @@ async function fetchRemoteStateOnce(){
 }
 
 function listenScoreState(){
-  if(!(firebaseEnabled && docRef)) return false;
+  if(!(firebaseEnabled && docRef)) return;
   if(unsubscribeRoom) unsubscribeRoom();
+
   unsubscribeRoom = docRef.onSnapshot((doc) => {
     const data = doc.data();
     if(!data) return;
+
+    if(data.savedBy === CLIENT_ID && Number(data.savedAt || 0) === lastLocalSavedAt){
+      return;
+    }
+
     suppressRemoteSave = true;
     const ok = applyLoadedState(data);
     if(ok){
@@ -356,7 +413,26 @@ function listenScoreState(){
     suppressRemoteSave = false;
     console.log('云端同步失败，继续使用本地模式', err);
   });
-  return true;
+}
+
+const draftSyncTimers = {};
+function scheduleDraftSync(){
+  savePlayersLocal();
+  const key = 'draft';
+  if(draftSyncTimers[key]) clearTimeout(draftSyncTimers[key]);
+
+  draftSyncTimers[key] = setTimeout(async () => {
+    if(!(firebaseEnabled && docRef) || suppressRemoteSave) return;
+    try{
+      const payload = buildDraftPayload();
+      lastLocalSavedAt = payload.savedAt;
+      await docRef.set(payload, { merge: true });
+    }catch(err){
+      console.error('同步草稿失败', err);
+    }finally{
+      delete draftSyncTimers[key];
+    }
+  }, 120);
 }
 
 const state = {
@@ -374,15 +450,10 @@ const scoreSaveTimers = {};
 function scheduleDelayedSave(r, m){
   const key = `${r}-${m}`;
   if(scoreSaveTimers[key]) clearTimeout(scoreSaveTimers[key]);
-  scoreSaveTimers[key] = setTimeout(async () => {
-    try{
-      await saveScoreState();
-    }catch(err){
-      console.error('延迟同步失败', err);
-    }finally{
-      delete scoreSaveTimers[key];
-    }
-  }, 1200);
+  scoreSaveTimers[key] = setTimeout(() => {
+    saveScoreState();
+    delete scoreSaveTimers[key];
+  }, 120);
 }
 
 function flushDelayedSave(r, m){
@@ -421,24 +492,13 @@ function buildRoundsFromTemplate(names){
       const kind = m[0];
       const teamA = m[1].map(i => names[i]);
       const teamB = kind === 'reg' ? m[2].map(i => names[i]) : ['陪打A','陪打B'];
-      return {
-        teamA,
-        teamB,
-        sparring: kind === 'spar',
-        scoreA: '',
-        scoreB: ''
-      };
+      return { teamA, teamB, sparring: kind === 'spar', scoreA: '', scoreB: '' };
     });
     const active = new Set();
     matches.forEach(mt => mt.teamA.concat(mt.teamB).forEach(p => { if(names.includes(p)) active.add(p); }));
-    return {
-      round: idx + 1,
-      bye: names.filter(n => !active.has(n)),
-      matches
-    };
+    return { round: idx + 1, bye: names.filter(n => !active.has(n)), matches };
   });
 }
-
 function countPairCoverage(rounds){
   const set = new Set();
   rounds.forEach(rd => rd.matches.forEach(m => {
@@ -447,51 +507,32 @@ function countPairCoverage(rounds){
   }));
   return set.size;
 }
-
 function countSingleCourtRounds(rounds){
   return rounds.filter(r => (r.matches || []).length === 1).length;
 }
-
 function matchUsesFormalPlayers(match){
   const s = new Set();
-  match.teamA.concat(match.teamB).forEach(p => {
-    if(!String(p).startsWith('陪打')) s.add(p);
-  });
+  match.teamA.concat(match.teamB).forEach(p => { if(!String(p).startsWith('陪打')) s.add(p); });
   return s;
 }
-
 function combineIntoRounds(matches){
   const remaining = matches.slice();
   const rounds = [];
   while(remaining.length){
     const first = remaining.shift();
-    if(remaining.length === 0){
-      rounds.push({matches:[first]});
-      break;
-    }
+    if(remaining.length === 0){ rounds.push({matches:[first]}); break; }
     const used = matchUsesFormalPlayers(first);
-    let bestIdx = -1;
-    let bestScore = -1e9;
-
+    let bestIdx = -1, bestScore = -1e9;
     for(let i=0;i<remaining.length;i++){
       const cand = remaining[i];
       const used2 = matchUsesFormalPlayers(cand);
       let overlap = 0;
       used2.forEach(p => { if(used.has(p)) overlap++; });
-
-      if(!first.sparring && !cand.sparring && overlap > 0){
-        continue;
-      }
-
+      if(!first.sparring && !cand.sparring && overlap > 0) continue;
       let score = overlap === 0 ? 1000 : -1000 * overlap;
       if(!!first.sparring === !!cand.sparring) score += 10;
-
-      if(score > bestScore){
-        bestScore = score;
-        bestIdx = i;
-      }
+      if(score > bestScore){ bestScore = score; bestIdx = i; }
     }
-
     if(bestIdx >= 0 && bestScore > 0){
       const second = remaining.splice(bestIdx, 1)[0];
       rounds.push({matches:[first, second]});
@@ -501,19 +542,15 @@ function combineIntoRounds(matches){
   }
   return rounds;
 }
-
 function reorderRounds(rounds, names){
   const full = rounds.filter(r => (r.matches || []).length >= 2 && !(r.matches || []).some(m => m.sparring));
   const singleNormal = rounds.filter(r => (r.matches || []).length === 1 && !(r.matches || []).some(m => m.sparring));
   const sparring = rounds.filter(r => (r.matches || []).some(m => m.sparring));
-
   const ordered = full.concat(singleNormal).concat(sparring);
-
   const fullPrefix = ordered.filter(r => (r.matches || []).length >= 2);
   const singleTail = ordered.filter(r => (r.matches || []).length === 1);
   const limitedTail = singleTail.slice(0, 2);
   const overflowSingles = singleTail.slice(2);
-
   const reparsed = fullPrefix.slice();
   const leftover = overflowSingles.concat(limitedTail);
   while(leftover.length){
@@ -521,42 +558,30 @@ function reorderRounds(rounds, names){
     if(leftover.length){
       const b = leftover.shift();
       reparsed.push({matches:a.matches.concat(b.matches).slice(0,2)});
-    } else {
-      reparsed.push(a);
-    }
+    } else reparsed.push(a);
   }
-
   const reparsedFull = reparsed.filter(r => (r.matches || []).length >= 2);
   const reparsedSingle = reparsed.filter(r => (r.matches || []).length === 1);
   let finalRounds = reparsedFull.concat(reparsedSingle.slice(0,2));
-
   const remaining = finalRounds.slice();
   const result = [];
   const byeCount = Object.fromEntries(names.map(n => [n, 0]));
-
   while(remaining.length){
-    let bestIdx = 0;
-    let bestScore = -Infinity;
+    let bestIdx = 0, bestScore = -Infinity;
     for(let i=0;i<remaining.length;i++){
       const rd = remaining[i];
       const active = new Set();
       rd.matches.forEach(mt => mt.teamA.concat(mt.teamB).forEach(p => { if(names.includes(p)) active.add(p); }));
       const bye = names.filter(n => !active.has(n));
-
       let penalty = 0;
       bye.forEach(n => {
         if(byeCount[n] >= 2) penalty += 10000;
         penalty += byeCount[n] * 50;
       });
-
       const twoCourtBonus = rd.matches.length >= 2 ? 500 : 0;
       const score = twoCourtBonus - penalty + Math.random() * 0.01;
-      if(score > bestScore){
-        bestScore = score;
-        bestIdx = i;
-      }
+      if(score > bestScore){ bestScore = score; bestIdx = i; }
     }
-
     const picked = remaining.splice(bestIdx, 1)[0];
     const active = new Set();
     picked.matches.forEach(mt => mt.teamA.concat(mt.teamB).forEach(p => { if(names.includes(p)) active.add(p); }));
@@ -564,18 +589,15 @@ function reorderRounds(rounds, names){
     picked.bye.forEach(n => { byeCount[n] += 1; });
     result.push(picked);
   }
-
   result.forEach((rd, idx) => { rd.round = idx + 1; });
   return result;
 }
-
 function generateEqualSchedule(names){
   const rawRounds = buildRoundsFromTemplate(names);
   const flatMatches = [];
   rawRounds.forEach(r => r.matches.forEach(m => flatMatches.push(m)));
   const grouped = combineIntoRounds(flatMatches);
   const rounds = reorderRounds(grouped, names);
-  const singleCourtRounds = countSingleCourtRounds(rounds);
   return {
     rounds,
     matchCount: rounds.reduce((s, rd) => s + rd.matches.length, 0),
@@ -583,19 +605,14 @@ function generateEqualSchedule(names){
     coverage: countPairCoverage(rounds),
     totalPairs: totalPartnerPairs(names.length),
     usedSparring: rounds.some(r => r.matches.some(m => m.sparring)),
-    singleCourtRounds
+    singleCourtRounds: countSingleCourtRounds(rounds)
   };
 }
-
 function getStandings(){
   const map = {};
   for(const name of state.players){
-    map[name] = {
-      name, played: 0, win: 0, loss: 0, diff: 0,
-      partners: new Set(), opponents: new Set(),
-    };
+    map[name] = { name, played: 0, win: 0, loss: 0, diff: 0, partners: new Set(), opponents: new Set() };
   }
-
   state.rounds.forEach(rd => {
     rd.matches.forEach(m => {
       const all = m.teamA.concat(m.teamB).filter(p => map[p]);
@@ -603,32 +620,15 @@ function getStandings(){
       if(map[m.teamA[0]] && map[m.teamA[1]]){ map[m.teamA[0]].partners.add(m.teamA[1]); map[m.teamA[1]].partners.add(m.teamA[0]); }
       if(map[m.teamB[0]] && map[m.teamB[1]]){ map[m.teamB[0]].partners.add(m.teamB[1]); map[m.teamB[1]].partners.add(m.teamB[0]); }
       m.teamA.forEach(a => m.teamB.forEach(b => { if(map[a] && map[b]){ map[a].opponents.add(b); map[b].opponents.add(a); } }));
-
       const a = Number(m.scoreA), b = Number(m.scoreB);
       const scored = m.scoreA !== '' && m.scoreB !== '' && !Number.isNaN(a) && !Number.isNaN(b);
       if(!scored) return;
-
-      m.teamA.forEach(p => {
-        if(!map[p]) return;
-        map[p].diff += a - b;
-        if(a > b) map[p].win++; else if(a < b) map[p].loss++;
-      });
-      m.teamB.forEach(p => {
-        if(!map[p]) return;
-        map[p].diff += b - a;
-        if(b > a) map[p].win++; else if(b < a) map[p].loss++;
-      });
+      m.teamA.forEach(p => { if(map[p]){ map[p].diff += a - b; if(a > b) map[p].win++; else if(a < b) map[p].loss++; }});
+      m.teamB.forEach(p => { if(map[p]){ map[p].diff += b - a; if(b > a) map[p].win++; else if(b < a) map[p].loss++; }});
     });
   });
-
-  return Object.values(map).map(x => ({
-    ...x,
-    partnerCount: x.partners.size,
-    opponentCount: x.opponents.size
-  })).sort((a,b) => b.win - a.win || b.diff - a.diff || b.partnerCount - a.partnerCount || a.name.localeCompare(b.name, 'zh-CN'));
-}
-function allPlayedEqual(){
-  return state.standings.length ? state.standings.every(x => x.played === state.standings[0].played) : true;
+  return Object.values(map).map(x => ({ ...x, partnerCount: x.partners.size, opponentCount: x.opponents.size }))
+    .sort((a,b) => b.win - a.win || b.diff - a.diff || b.partnerCount - a.partnerCount || a.name.localeCompare(b.name, 'zh-CN'));
 }
 function renderTags(){
   const allPartnered = state.standings.length ? state.standings.every(x => x.partnerCount === state.players.length - 1) : false;
@@ -652,7 +652,6 @@ function renderSchedule(){
     const box = document.createElement('div');
     box.className = 'schedule-round';
     box.innerHTML = `<div class="schedule-head"><strong>第 ${rd.round} 轮</strong><span class="small">${rd.bye.length ? '轮空：' + rd.bye.join('、') : '无人轮空'}</span></div>`;
-
     rd.matches.forEach((m, mIndex) => {
       const match = document.createElement('div');
       match.className = m.sparring ? 'match sparring' : 'match';
@@ -663,9 +662,9 @@ function renderSchedule(){
         <div class="teamrow">
           <div class="team"><div>${m.teamA[0]}</div><div>${m.teamA[1]}</div></div>
           <div class="scorewrap">
-            <input data-r="${rIndex}" data-m="${mIndex}" data-f="scoreA" value="${m.scoreA}" />
+            <input inputmode="numeric" data-r="${rIndex}" data-m="${mIndex}" data-f="scoreA" value="${m.scoreA}" />
             <span>-</span>
-            <input data-r="${rIndex}" data-m="${mIndex}" data-f="scoreB" value="${m.scoreB}" />
+            <input inputmode="numeric" data-r="${rIndex}" data-m="${mIndex}" data-f="scoreB" value="${m.scoreB}" />
           </div>
           <div class="team"><div>${m.teamB[0]}</div><div>${m.teamB[1]}</div></div>
         </div>
@@ -685,10 +684,9 @@ function renderSchedule(){
       renderTags();
       scheduleDelayedSave(r, m);
     });
-
-    inp.addEventListener('blur', async e => {
+    inp.addEventListener('blur', e => {
       const r = Number(e.target.dataset.r), m = Number(e.target.dataset.m);
-      await flushDelayedSave(r, m);
+      flushDelayedSave(r, m);
     });
   });
 }
@@ -704,12 +702,8 @@ function renderPlayers(){
   });
 }
 function medalSVG(idx){
-  if(idx === 0){
-    return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.35 4.76 5.25.76-3.8 3.7.9 5.23L12 14l-4.7 2.47.9-5.23-3.8-3.7 5.25-.76L12 2z"/></svg>`;
-  }
-  if(idx === 1){
-    return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l6 3v5c0 4.1-2.55 7.78-6 9-3.45-1.22-6-4.9-6-9V6l6-3zm0 4.2l-2.05 4.15L5.4 12l3.28 3.2-.78 4.52L12 17.54l4.1 2.18-.78-4.52L18.6 12l-4.55-.65L12 7.2z"/></svg>`;
-  }
+  if(idx === 0) return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.35 4.76 5.25.76-3.8 3.7.9 5.23L12 14l-4.7 2.47.9-5.23-3.8-3.7 5.25-.76L12 2z"/></svg>`;
+  if(idx === 1) return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l6 3v5c0 4.1-2.55 7.78-6 9-3.45-1.22-6-4.9-6-9V6l6-3zm0 4.2l-2.05 4.15L5.4 12l3.28 3.2-.78 4.52L12 17.54l4.1 2.18-.78-4.52L18.6 12l-4.55-.65L12 7.2z"/></svg>`;
   return `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10v3h2a1 1 0 0 1 1 1c0 3.2-1.9 5.74-4.72 6.57A5.98 5.98 0 0 1 13 15.92V18h3v2H8v-2h3v-2.08a5.98 5.98 0 0 1-2.28-3.35C5.9 11.74 4 9.2 4 6a1 1 0 0 1 1-1h2V2zm10 5V5h-1v4.54A4.98 4.98 0 0 0 17 7zM7 9.54V5H6v2c0 2.01.84 3.6 1 2.54z"/></svg>`;
 }
 function renderStats(){
@@ -768,7 +762,6 @@ function openPlayerModal(name){
   `;
   document.getElementById('playerDialog').showModal();
 }
-
 function generateRoomId(){
   const now = new Date();
   const datePart = now.getFullYear().toString() +
@@ -781,7 +774,19 @@ function generateRoomId(){
   const randPart = Math.random().toString(36).slice(2, 10);
   return `match-${datePart}-${randPart}`;
 }
-
+function buildRoomUrl(currentRoomId){
+  const url = new URL(window.location.origin + window.location.pathname);
+  url.searchParams.set('room', currentRoomId || roomId || 'default');
+  return url.toString();
+}
+async function copyCurrentRoomLink(){
+  try{
+    await navigator.clipboard.writeText(buildRoomUrl(roomId));
+    alert('比赛链接已复制');
+  }catch(err){
+    alert('复制失败');
+  }
+}
 async function createNewMatchRoomAndGo(){
   const names = uniqNames(document.getElementById('playerText').value);
   if(names.length < 8 || names.length > 12){
@@ -789,16 +794,9 @@ async function createNewMatchRoomAndGo(){
     return;
   }
 
-  const nextRoomId = generateRoomId();
-  const baseUrl = new URL(window.location.origin + window.location.pathname);
-  baseUrl.search = '';
-  baseUrl.hash = '';
-  baseUrl.searchParams.set('room', nextRoomId);
-  const nextUrl = baseUrl.toString();
-
-  let payload = null;
-
+  let payload;
   try{
+    const nextRoomId = generateRoomId();
     const result = generateEqualSchedule(names);
     payload = {
       roomId: nextRoomId,
@@ -815,79 +813,56 @@ async function createNewMatchRoomAndGo(){
       savedBy: CLIENT_ID,
       savedAt: Date.now()
     };
+    const nextUrl = buildRoomUrl(nextRoomId);
+
+    try{
+      localStorage.setItem(`badminton_players_autosave_v2_${nextRoomId}`, payload.draftPlayersText);
+      localStorage.setItem(`badminton_score_state_v1_${nextRoomId}`, JSON.stringify(payload));
+    }catch(err){}
+
+    if(firebaseEnabled && db){
+      try{
+        await db.collection('badminton').doc(nextRoomId).set(payload, { merge: true });
+      }catch(err){
+        console.error('写入云端失败，仍继续跳转到新链接', err);
+      }
+    }
+
+    try{
+      await navigator.clipboard.writeText(nextUrl);
+    }catch(err){}
+
+    window.location.assign(nextUrl);
   }catch(err){
-    console.error('生成对阵失败', err);
-    alert(err.message || '生成比赛失败，请重试');
+    console.error(err);
+    alert(err.message || '创建比赛失败，请重试');
+  }
+}
+function copyShare(){
+  if(!state.rounds.length){
+    alert('请先生成比赛');
     return;
   }
-
-  // 先把新房间内容落到本地，保证即使云端失败也能跳转
-  try{
-    localStorage.setItem(`badminton_players_autosave_v2_${nextRoomId}`, payload.draftPlayersText);
-    localStorage.setItem(`badminton_score_state_v1_${nextRoomId}`, JSON.stringify(payload));
-  }catch(err){
-    console.error('写本地缓存失败', err);
-  }
-
-  // 云端写入失败时不阻塞创建链接
-  if(firebaseEnabled && db){
-    try{
-      await db.collection('badminton').doc(nextRoomId).set(payload, { merge: true });
-    }catch(err){
-      console.error('写入云端失败，仍继续跳转到新链接', err);
-    }
-  }
-
-  try{
-    await navigator.clipboard.writeText(nextUrl);
-  }catch(err){}
-
-  window.location.assign(nextUrl);
-}
-
-function buildRoomUrl(currentRoomId){
-  const url = new URL(window.location.origin + window.location.pathname);
-  url.searchParams.set('room', currentRoomId || roomId || 'default');
-  return url.toString();
-}
-async function copyCurrentRoomLink(){
-  try{
-    const url = buildRoomUrl(roomId);
-    await navigator.clipboard.writeText(url);
-    alert('比赛链接已复制');
-  }catch(err){
-    alert('复制失败');
-  }
-}
-
-function copyShare(){
-  if(!state.rounds.length){ 
-    alert('请先生成比赛'); 
-    return; 
-  }
-
-  const lines = [
-    `【${document.getElementById('matchTitle').value || '羽毛球双打赛'}】`
-  ];
-
-  lines.push(`人数：${state.players.length}人`);
-  lines.push(`总轮次：${state.rounds.length}`);
+  const matchTitle = document.getElementById('matchTitle').value || '羽毛球双打赛';
+  const lines = [];
+  lines.push(`🏸【${matchTitle}】`);
+  lines.push(`👥 人数：${state.players.length}人`);
+  lines.push(`🔁 总轮次：${state.rounds.length}轮`);
   lines.push('');
-
-  state.rounds.forEach(rd => {
-    lines.push(`第${rd.round}轮`);
-    rd.matches.forEach(m => {
-      lines.push(`${m.teamA[0]}/${m.teamA[1]} VS ${m.teamB[0]}/${m.teamB[1]}`);
+  state.rounds.forEach((rd, idx) => {
+    lines.push(`📍 第${rd.round}轮`);
+    rd.matches.forEach((m, matchIdx) => {
+      const label = rd.matches.length > 1 ? `  ${matchIdx + 1}. ` : '  ';
+      const scoreText = (m.scoreA !== '' && m.scoreB !== '') ? `  （${m.scoreA}:${m.scoreB}）` : '';
+      lines.push(`${label}${m.teamA[0]}/${m.teamA[1]} VS ${m.teamB[0]}/${m.teamB[1]}${scoreText}`);
     });
-    if(rd.bye.length) lines.push(`轮空：${rd.bye.join('、')}`);
-    lines.push('');
+    if(rd.bye.length) lines.push(`😴 轮空：${rd.bye.join('、')}`);
+    if(idx !== state.rounds.length - 1) lines.push('');
   });
-
   navigator.clipboard.writeText(lines.join('\n'))
     .then(() => alert('已复制群文案'))
     .catch(() => alert('复制失败'));
 }
-
 async function generate(){
   return createNewMatchRoomAndGo();
 }
@@ -898,51 +873,63 @@ document.getElementById('copyRoomBtn').addEventListener('click', copyCurrentRoom
 document.getElementById('refreshBtn').addEventListener('click', async () => {
   if(firebaseEnabled){
     const ok = await fetchRemoteStateOnce();
-    if(ok){
-      alert('已同步后台最新数据');
-    }else{
-      alert('后台暂时没有可同步的数据');
-    }
+    if(ok) alert('已同步后台最新数据');
+    else alert('后台暂时没有可同步的数据');
   }else{
     const ok = loadLocalScoreState();
     if(!ok) alert('当前没有可刷新的本地比分记录');
     else alert('已刷新本地已保存比分');
   }
 });
-
 document.getElementById('playerText').addEventListener('input', () => {
-  if(!applyingRemoteState){
-    savePlayersLocal();
-  }
+  if(!applyingRemoteState) scheduleDraftSync();
 });
-
+document.getElementById('matchTitle').addEventListener('input', () => {
+  if(!applyingRemoteState) scheduleDraftSync();
+});
+document.getElementById('courtText').addEventListener('input', () => {
+  if(!applyingRemoteState) scheduleDraftSync();
+});
 window.addEventListener('storage', (e) => {
   if(e.key === SCORE_STATE_STORAGE_KEY){
     loadLocalScoreState();
   }
 });
 
-async function initApp(){
-  let hasRemote = false;
-  const hasLocal = loadLocalScoreState();
-
-  if(firebaseEnabled){
-    hasRemote = await fetchRemoteStateOnce();
-    listenScoreState();
-  }
-
-  if(!hasRemote && !hasLocal){
-    loadPlayersLocal();
-    await generate();
-  }else if(!hasRemote && hasLocal){
-    // 本地已加载，等待云端监听后续更新
-  }else if(hasRemote){
-    // 云端优先，确保输入框 draft 不覆盖房间数据
+async function seedRoomIfMissing(){
+  if(!(firebaseEnabled && docRef)) return false;
+  try{
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(docRef);
+      if(snap.exists) return;
+      tx.set(docRef, buildDraftPayload(), { merge: true });
+    });
+    return true;
+  }catch(err){
+    console.error('初始化房间失败', err);
+    return false;
   }
 }
 
+async function initApp(){
+  if(firebaseEnabled){
+    await seedRoomIfMissing();
+    listenScoreState();
+    const fetchedRemote = await fetchRemoteStateOnce();
+    if(fetchedRemote) return;
+
+    loadPlayersLocal();
+    return;
+  }
+
+  const hasLocal = loadLocalScoreState();
+  if(!hasLocal){
+    loadPlayersLocal();
+  }
+}
 initApp();
 </script>
+
 
 </body>
 </html>
